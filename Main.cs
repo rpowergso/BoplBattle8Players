@@ -14,9 +14,9 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using static Mono.Security.X509.X520;
 
-namespace MoreMultiPlayer
+namespace MorePlayers
 {
-    [BepInPlugin("com.MorePlayersTeam.MorePlayers", "MorePlayers", "1.0.0")]
+    [BepInPlugin("com.rpowergso.bopl8players", "Bopl 8 Players", "0.2.0")]
     public class Main : BaseUnityPlugin
     {
         internal static ManualLogSource Log;
@@ -184,14 +184,14 @@ namespace MoreMultiPlayer
             Log.LogInfo("Logger Loaded");
 
             // Configuration
-            maxPlayers = Config.Bind("General", "MaxPlayers", 8, "The maximum number of players allowed in a lobby.");
-            Constants.MAX_PLAYERS = maxPlayers.Value;
+            maxPlayers = Config.Bind("General", "MaxPlayers", 8, "The maximum number of players allowed in a lobby (4-8).");
+            Constants.MAX_PLAYERS = Math.Max(4, Math.Min(8, maxPlayers.Value));
 
 
             Host.recordReplay = false; // Disable replay recording since I'm lazy to implement it
             Logger.LogInfo("Disabled replay recording");
 
-            harmony = new Harmony("com.MorePlayersTeam.MorePlayers");
+            harmony = new Harmony("com.rpowergso.bopl8players");
 
             harmony.PatchAll();
 
@@ -238,11 +238,12 @@ namespace MoreMultiPlayer
     [HarmonyPatch("Awake")]
     public static class PatchVersion
     {
-        public static void Prefix()
+        public static void Postfix()
         {
-            Main.Log.LogInfo($"Found version {Constants.version}");
-            Constants.version = $"{Constants.version} -More Players Modded";
-            Main.Log.LogInfo($"Patched to version {Constants.version}");
+            if (!Constants.version.Contains("Bopl 8 Players"))
+            {
+                Constants.version = $"{Constants.version} - Bopl 8 Players 0.2.0";
+            }
         }
     }
 }

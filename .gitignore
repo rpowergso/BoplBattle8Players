@@ -3,3 +3,5 @@ bin/
 obj/
 .vs/
 *.DotSettings.user
+lib/Assembly-CSharp.publicized.dll
+artifacts/

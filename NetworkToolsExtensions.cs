@@ -6,13 +6,49 @@ namespace MorePlayers;
 
 public static class NetworkToolsExtensions
 {
+    public const int HeaderSize = 6;
+    private const int PayloadBaseSize = 11;
+    private const byte ProtocolVersion = 1;
+    private const byte StartRequestMessage = 1;
+    private static readonly byte[] Magic = { (byte)'M', (byte)'B', (byte)'P', (byte)'2' };
+
+    public static bool IsMultiStartRequest(byte[] data)
+    {
+        if (data == null || data.Length < HeaderSize + PayloadBaseSize)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < Magic.Length; i++)
+        {
+            if (data[i] != Magic[i])
+            {
+                return false;
+            }
+        }
+
+        if (data[4] != ProtocolVersion || data[5] != StartRequestMessage)
+        {
+            return false;
+        }
+
+        int playerCount = data[HeaderSize + 6];
+        return playerCount >= 1 && playerCount <= Constants.MAX_PLAYERS &&
+               data.Length == HeaderSize + PayloadBaseSize + playerCount * 13;
+    }
+
     public static MultiStartRequestPacket ReadMultiStartRequest(byte[] data, ref byte[] uintConversionHelperArray,
         ref byte[] ulongConversionHelperArray, ref byte[] ushortConversionHelperArray)
     {
+	    if (!IsMultiStartRequest(data))
+	    {
+		    throw new ArgumentException("Invalid MorePlayers start-request packet.", nameof(data));
+	    }
+
 	    Main.Log.LogInfo($"Decoding MultiStartRequestPacket, size of array: {data.Length}");
 	    
 	    MultiStartRequestPacket result = default(MultiStartRequestPacket);
-		int num = 0;
+		int num = HeaderSize;
 		ushortConversionHelperArray[0] = data[num++];
 		ushortConversionHelperArray[1] = data[num++];
 		result.seqNum = NetworkTools.SwapBytesIfLittleEndian(BitConverter.ToUInt16(ushortConversionHelperArray, 0));
@@ -86,8 +122,20 @@ public static class NetworkToolsExtensions
 
     public static void EncodeMultiStartRequest(ref byte[] data, MultiStartRequestPacket p)
     {
+	    int requiredSize = GetMultiStartRequestSize(p);
+	    if (data == null || data.Length != requiredSize)
+	    {
+		    data = new byte[requiredSize];
+	    }
+
 	    Main.Log.LogInfo($"Encoding MultiStartRequestPacket, size of array: {data.Length}");
 	    int num = 0;
+	    for (int i = 0; i < Magic.Length; i++)
+	    {
+		    data[num++] = Magic[i];
+	    }
+	    data[num++] = ProtocolVersion;
+	    data[num++] = StartRequestMessage;
 	
 	    Main.Log.LogInfo($"Encoding seqNum: {p.seqNum} (byte: {num})");
 	    p.seqNum = NetworkTools.SwapBytesIfLittleEndian(p.seqNum);
@@ -161,7 +209,7 @@ public static class NetworkToolsExtensions
 
     public static int GetMultiStartRequestSize(MultiStartRequestPacket startParameters)
     {
-	    return 11 + startParameters.nrOfPlayers * 13;
+	    return HeaderSize + PayloadBaseSize + startParameters.nrOfPlayers * 13;
     }
 }
 
