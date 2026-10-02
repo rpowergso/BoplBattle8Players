@@ -10,13 +10,14 @@ using BepInEx.Logging;
 using HarmonyLib;
 using HarmonyLib.Tools;
 using Steamworks;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UIElements;
 using static Mono.Security.X509.X520;
 
 namespace MorePlayers
 {
-    [BepInPlugin("com.rpowergso.bopl8players", "Bopl 8 Players", "0.2.0")]
+    [BepInPlugin("com.rpowergso.bopl8players", "Bopl 8 Players", "0.2.1")]
     public class Main : BaseUnityPlugin
     {
         internal static ManualLogSource Log;
@@ -181,6 +182,7 @@ namespace MorePlayers
         private void Awake()
         {
             Log = Logger;
+            Log.LogInfo("Bopl 8 Players 0.2.1: online lobby UI update");
             Log.LogInfo("Logger Loaded");
 
             // Configuration
@@ -218,7 +220,10 @@ namespace MorePlayers
 
         private void OnDestroy()
         {
-            harmony.UnpatchSelf();
+            // Unity can destroy the bootstrap plugin object before the first menu
+            // loads. BepInEx 5 plugins are process-scoped; keep the static patches
+            // installed until the game exits, including across scene transitions.
+            Log.LogInfo("Plugin object destroyed; eight-player patches remain installed for this game session.");
         }
 
         private void Update()
@@ -238,12 +243,13 @@ namespace MorePlayers
     [HarmonyPatch("Awake")]
     public static class PatchVersion
     {
-        public static void Postfix()
+        public static void Postfix(printText __instance)
         {
             if (!Constants.version.Contains("Bopl 8 Players"))
             {
-                Constants.version = $"{Constants.version} - Bopl 8 Players 0.2.0";
+                Constants.version = $"{Constants.version} - Bopl 8 Players 0.2.1";
             }
+            __instance.GetComponent<TextMeshProUGUI>().text = Constants.version;
         }
     }
 }

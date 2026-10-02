@@ -4,7 +4,7 @@
     <TargetFramework>net46</TargetFramework>
     <AssemblyName>Bopl8Players</AssemblyName>
     <Description>Eight-player online lobbies for Bopl Battle 2.5.1.</Description>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <BoplBattleDir Condition="'$(BoplBattleDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Bopl Battle</BoplBattleDir>
@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="artifacts/**/*.cs" />
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.Core" Version="5.*" />
     <PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
