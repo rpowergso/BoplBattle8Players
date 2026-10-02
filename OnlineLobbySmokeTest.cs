@@ -52,7 +52,7 @@ namespace MorePlayers
             }
             finally { OnlineInviteFriends.OpenOverlay = originalOverlay; }
             if ((ulong)invitedLobby != (ulong)SteamManager.instance.currentLobby.Id || handler.findPlayersText.text != "INVITE PLAYERS")
-                throw new Exception("Native invite button did not target the current lobby");
+                throw new Exception($"Native invite mismatch: actual={(ulong)invitedLobby}, expected={(ulong)SteamManager.instance.currentLobby.Id}, label={handler.findPlayersText.text}");
             Main.Log.LogInfo("[UI smoke] PASS: in-game invite menu opens; Steam window targets current lobby (overlay mocked)");
             for (int i = 0; i < expected; i++)
             {

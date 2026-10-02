@@ -162,6 +162,13 @@ namespace MorePlayers
     {
         static void Postfix(CharacterSelectHandler_online __instance)
         {
+            // Localization's Start/Update can restore FIND PLAYERS after our
+            // handler Start patch. This control now has a different action.
+            foreach (var label in new[] { __instance.findPlayersText, __instance.findPlayersStopText })
+            {
+                var localized = label.GetComponent<LocalizedText>();
+                if (localized != null) localized.enabled = false;
+            }
             __instance.findPlayersText.text = "INVITE PLAYERS";
             __instance.findPlayersStopText.text = "INVITE PLAYERS";
             __instance.gameObject.AddComponent<OnlineInviteMenu>().Handler = __instance;

@@ -19,7 +19,7 @@ $buildDirectory = Join-Path $testDirectory 'build'
 if ($LASTEXITCODE -ne 0) { throw 'UI test build failed.' }
 Copy-Item -LiteralPath (Join-Path $buildDirectory 'Bopl8Players.dll') -Destination $pluginDirectory
 $targetAssembly = Join-Path $testBepInEx 'core\BepInEx.Preloader.dll'
-$arguments = '-screen-width 1920 -screen-height 1080 -screen-fullscreen 0 --doorstop-enabled true --doorstop-target-assembly "' + $targetAssembly + '"'
+$arguments = '-logFile "' + (Join-Path $testDirectory 'Player.log') + '" -screen-width 1920 -screen-height 1080 -screen-fullscreen 0 --doorstop-enabled true --doorstop-target-assembly "' + $targetAssembly + '"'
 $testProcess = Start-Process -FilePath (Join-Path $GameDirectory 'BoplBattle.exe') -WorkingDirectory $GameDirectory -ArgumentList $arguments -WindowStyle Hidden -PassThru
 if (-not $testProcess.WaitForExit(45000)) {
     Stop-Process -Id $testProcess.Id
