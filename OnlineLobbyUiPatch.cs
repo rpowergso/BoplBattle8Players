@@ -1,12 +1,13 @@
 using System;
 using HarmonyLib;
+using Steamworks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace MorePlayers
 {
-    [HarmonyPatch(typeof(CharacterSelectHandler_online), "Awake")]
+    [HarmonyPatch(typeof(CharacterSelectHandler_online), "Start")]
     internal static class OnlineLobbyUiPatch
     {
         static void Postfix(CharacterSelectHandler_online __instance)
@@ -21,9 +22,10 @@ namespace MorePlayers
             var templateCircle = __instance.loadingCircles[originalCount - 1];
             var localRect = (RectTransform)__instance.characterSelectBox.transform;
             float originalStep = ((RectTransform)boxes[0].transform).anchoredPosition.x - localRect.anchoredPosition.x;
-            float center = localRect.anchoredPosition.x + originalStep * originalCount / 2f;
-            float scale = (originalCount + 1f) / Constants.MAX_PLAYERS;
-            float step = originalStep * scale;
+            // Keep the local ability selector at its native size. Remote cards
+            // occupy the existing right-hand area, four columns by two rows.
+            const float scale = 0.68f;
+            float step = originalStep * 0.70f;
 
             Array.Resize(ref boxes, remoteCount);
             var circles = __instance.loadingCircles;
@@ -48,62 +50,169 @@ namespace MorePlayers
             __instance.networkPlayerBoxes = boxes;
             __instance.loadingCircles = circles;
 
-            Position(localRect, center - step * remoteCount / 2f, scale);
             var emptySlots = new GameObject[remoteCount];
             for (int i = 0; i < remoteCount; i++)
             {
-                float x = center + step * (i + 1 - remoteCount / 2f);
-                Position((RectTransform)boxes[i].transform, x, scale);
-                Position(circles[i].rectTransform, x, scale);
+                float x = localRect.anchoredPosition.x + originalStep * 0.90f + step * (i % 4);
+                float y = localRect.anchoredPosition.y + 300f - 730f * (i / 4);
+                var boxRect = (RectTransform)boxes[i].transform;
+                float animationTarget = boxes[i].GetComponent<AnimateInOutUI>().originalHeights[0];
+                var oldPosition = boxRect.anchoredPosition;
+                var oldScale = boxRect.localScale;
+                var wrapper = new GameObject("RemoteSlot_P" + (i + 2), typeof(RectTransform));
+                var wrapperRect = (RectTransform)wrapper.transform;
+                wrapperRect.SetParent(boxRect.parent, false);
+                wrapperRect.anchorMin = boxRect.anchorMin;
+                wrapperRect.anchorMax = boxRect.anchorMax;
+                wrapperRect.pivot = boxRect.pivot;
+                wrapperRect.sizeDelta = boxRect.sizeDelta;
+                wrapperRect.anchoredPosition = new Vector2(x, y - animationTarget * scale);
+                wrapperRect.localScale = Vector3.one * scale;
+                // Native cards animate their children well outside the panel.
+                // A clip viewport keeps those hidden states out of neighboring
+                // cards even when the remote display is smaller than vanilla.
+                var clip = new GameObject("CardViewport", typeof(RectTransform), typeof(RectMask2D));
+                var clipRect = (RectTransform)clip.transform;
+                clipRect.SetParent(wrapperRect, false);
+                clipRect.anchorMin = clipRect.anchorMax = new Vector2(0.5f, 0.5f);
+                clipRect.sizeDelta = new Vector2(700, 1100);
+                clipRect.anchoredPosition = new Vector2(0, animationTarget - 175);
+                boxRect.SetParent(clipRect, false);
+                boxRect.anchorMin = boxRect.anchorMax = new Vector2(0.5f, 0.5f);
+                boxRect.anchoredPosition = new Vector2(0, oldPosition.y - clipRect.anchoredPosition.y);
+                boxRect.localScale = oldScale;
+                // Rebase root animation coordinates into the viewport. Nested
+                // choosing/ready animations stay in their native coordinates.
+                var rootAnimation = boxes[i].GetComponent<AnimateInOutUI>();
+                rootAnimation.originalHeights[0] -= clipRect.anchoredPosition.y;
+                rootAnimation.startHeight -= clipRect.anchoredPosition.y;
+                rootAnimation.endHeight -= clipRect.anchoredPosition.y;
+                var occupiedGroup = boxes[i].gameObject.AddComponent<CanvasGroup>();
+                occupiedGroup.alpha = 0;
+                occupiedGroup.interactable = false;
+                occupiedGroup.blocksRaycasts = false;
+
+                circles[i].rectTransform.SetParent(wrapperRect, false);
+                circles[i].rectTransform.anchorMin = circles[i].rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+                circles[i].rectTransform.anchoredPosition = new Vector2(0, animationTarget);
 
                 var empty = new GameObject("InviteSlot_P" + (i + 2), typeof(RectTransform), typeof(Image));
                 var rect = (RectTransform)empty.transform;
-                rect.SetParent(template.transform.parent, false);
-                var boxRect = (RectTransform)boxes[i].transform;
+                rect.SetParent(wrapperRect, false);
                 rect.anchorMin = boxRect.anchorMin;
                 rect.anchorMax = boxRect.anchorMax;
                 rect.pivot = boxRect.pivot;
                 rect.sizeDelta = boxRect.sizeDelta;
-                rect.anchoredPosition = new Vector2(x, circles[i].rectTransform.anchoredPosition.y);
+                rect.anchoredPosition = new Vector2(0, animationTarget);
                 rect.localScale = boxRect.localScale;
                 var border = empty.GetComponent<Image>();
                 border.sprite = template.borderImages[0].sprite;
                 border.type = template.borderImages[0].type;
-                border.color = __instance.disabledBlue;
+                border.color = new Color(__instance.blue.r, __instance.blue.g, __instance.blue.b, 0.3f);
                 border.raycastTarget = false;
 
                 var text = UnityEngine.Object.Instantiate(template.playerNameText, rect);
                 text.name = "InviteLabel";
-                text.text = "Invite friend\n" + (i + 2) + " / " + Constants.MAX_PLAYERS;
+                text.text = "Waiting for player";
                 text.color = __instance.disabledWhite;
                 text.alignment = TextAlignmentOptions.Center;
                 text.raycastTarget = false;
                 text.rectTransform.anchoredPosition = Vector2.zero;
                 text.rectTransform.sizeDelta = rect.sizeDelta * 0.8f;
+                text.enableAutoSizing = true;
+                text.fontSizeMin = 20;
+                text.fontSizeMax = template.playerNameText.fontSize;
+                var group = empty.AddComponent<CanvasGroup>();
+                group.interactable = false;
+                group.blocksRaycasts = false;
                 emptySlots[i] = empty;
             }
             var view = __instance.gameObject.AddComponent<OnlineLobbyEmptySlots>();
             view.Boxes = boxes;
             view.EmptySlots = emptySlots;
+            view.Handler = __instance;
             Main.Log.LogInfo($"Online lobby UI ready: 1 local + {boxes.Length} remote slots; {circles.Length} loading indicators.");
         }
 
-        static void Position(RectTransform rect, float x, float scale)
-        {
-            // Preserve Y: AnimateInOutUI owns its cached animation heights.
-            rect.anchoredPosition = new Vector2(x, rect.anchoredPosition.y);
-            rect.localScale *= scale;
-        }
     }
 
     internal sealed class OnlineLobbyEmptySlots : MonoBehaviour
     {
         internal CSBox_online[] Boxes;
         internal GameObject[] EmptySlots;
+        internal CharacterSelectHandler_online Handler;
         void LateUpdate()
         {
             for (int i = 0; i < Boxes.Length; i++)
-                EmptySlots[i].SetActive(!Boxes[i].isVisible);
+            {
+                var group = EmptySlots[i].GetComponent<CanvasGroup>();
+                bool show = !Boxes[i].isVisible && Handler.goingBackOperation == null && !Handler.isStartingAGame;
+                group.alpha = Mathf.MoveTowards(group.alpha, show ? 1f : 0f, Time.unscaledDeltaTime * 6f);
+                var occupied = Boxes[i].GetComponent<CanvasGroup>();
+                bool present = Boxes[i].isVisible && Handler.goingBackOperation == null;
+                occupied.alpha = Mathf.MoveTowards(occupied.alpha, present ? 1f : 0f, Time.unscaledDeltaTime * 6f);
+            }
+        }
+    }
+
+    // Reuse the native Find Players control, including its hover animation and
+    // controller selection path. Never enable public vanilla matchmaking.
+    [HarmonyPatch(typeof(CharacterSelectHandler_online), "Start")]
+    internal static class OnlineInviteLabelPatch
+    {
+        static void Postfix(CharacterSelectHandler_online __instance)
+        {
+            __instance.findPlayersText.text = "INVITE FRIENDS";
+            __instance.findPlayersStopText.text = "INVITE FRIENDS";
+        }
+    }
+
+    internal static class OnlineInviteFriends
+    {
+        internal static Action<SteamId> OpenOverlay = SteamFriends.OpenGameInviteOverlay;
+        internal static bool Available(CharacterSelectHandler_online handler)
+        {
+            var manager = SteamManager.instance;
+            return manager != null && SteamClient.IsValid && SteamClient.IsLoggedOn
+                && (ulong)manager.currentLobby.Id != 0
+                && manager.currentLobby.MemberCount < manager.currentLobby.MaxMembers
+                && !handler.isStartingAGame && handler.goingBackOperation == null;
+        }
+        internal static void Invite(CharacterSelectHandler_online handler)
+        {
+            if (!Available(handler)) return;
+            OpenOverlay(SteamManager.instance.currentLobby.Id);
+        }
+    }
+
+    [HarmonyPatch(typeof(CharacterSelectHandler_online), "CanClickFindPlayers")]
+    internal static class OnlineInviteAvailabilityPatch
+    {
+        static bool Prefix(CharacterSelectHandler_online __instance, ref bool __result)
+        {
+            __result = OnlineInviteFriends.Available(__instance);
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(CharacterSelectHandler_online), "ClickFindButton")]
+    internal static class OnlineInviteClickPatch
+    {
+        static bool Prefix(CharacterSelectHandler_online __instance)
+        {
+            OnlineInviteFriends.Invite(__instance);
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(CharacterSelectHandler_online), "TryFindPlayers")]
+    internal static class OnlineInviteKeyboardPatch
+    {
+        static bool Prefix()
+        {
+            var handler = CharacterSelectHandler_online.selfRef;
+            if (handler != null) OnlineInviteFriends.Invite(handler);
+            return false;
         }
     }
 

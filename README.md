@@ -6,7 +6,11 @@ This repository updates the original [MoreBoplPlayers](https://github.com/Abstra
 
 ## Status
 
-Version 0.2.1 builds against Bopl Battle 2.5.1 with BepInEx 5.4.23.5. An automated in-game check validates eight online lobby slots, seven remote loading indicators, eight Steam avatar slots, an eight-member Steam lobby, and returning to the online selection screen.
+Version 0.2.2 builds against Bopl Battle 2.5.1 with BepInEx 5.4.23.5. The local ability selector retains its vanilla size. Seven remote cards use a clipped two-row layout so off-screen animation states cannot spill into adjacent cards. The native Find Players control is repurposed as **Invite Friends**, with the original hover effects and controller navigation. It opens Steam's invite dialog for the current lobby and does not start public matchmaking.
+
+The legacy statistics overlay is off by default and never shown in menus. To enable it during rounds, set `UI.ShowStatsOverlay = true` in the plugin configuration.
+
+The automated in-game check covers lobby/UI capacity, animation targets, clipped synthetic player displays, ready/disconnected states, native invite-button dispatch (with the Steam overlay mocked), and returning to the online selection screen. Synthetic display checks do not test actual remote gameplay or send invitations.
 
 The 0.2.1 fix also keeps the static Harmony patches installed when Unity destroys the bootstrap plugin object. Version 0.2.0 could log a successful startup and then remove its own patches before the main menu appeared.
 
@@ -63,9 +67,11 @@ BepInEx/config/com.rpowergso.bopl8players.cfg
 
 For the local development installation on this computer, select the **Bopl8Dev** profile and use **Start modded**. The **Default** profile contains FixedMoreBopl, a different mod. Do not install both player-count mods in the same profile.
 
-In Online Play, the eight-player layout has your local selection panel and seven smaller remote/invite panels. Invite friends through Steam; everyone must install this same version. Public vanilla matchmaking remains disabled because the network protocol requires the mod on every computer.
+In Online Play, the eight-player layout has your full-size local selection panel and seven smaller remote cards in two rows. Use **Invite Friends** in the menu to open Steam's lobby invitation dialog; everyone must install this same version. Steam Overlay must be enabled for the game. Public vanilla matchmaking remains disabled because the network protocol requires the mod on every computer.
 
 ### Automated UI check
+
+With Bopl Battle closed, run `powershell -ExecutionPolicy Bypass -File .\scripts\Test-OnlineLobbyUi.ps1`. It builds the harness into an isolated profile under `artifacts/`, checks the native invitation route without opening Steam Overlay, exercises synthetic display cards, and saves a rendered screenshot and log. It leaves the normal installed DLL untouched.
 
 Build with `-p:DefineConstants=BOPL8_UI_SMOKE` to include a test harness. In an isolated BepInEx profile, it waits for Steam initialization, enters the real online selection scene, validates the UI and lobby capacity, leaves and re-enters the scene, logs `[UI smoke] PASS`, and exits. These checks do not simulate actual remote clients or prove gameplay synchronization. Rebuild normally before distributing the DLL; normal builds exclude the harness.
 

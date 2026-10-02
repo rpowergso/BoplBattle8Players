@@ -17,13 +17,14 @@ using static Mono.Security.X509.X520;
 
 namespace MorePlayers
 {
-    [BepInPlugin("com.rpowergso.bopl8players", "Bopl 8 Players", "0.2.1")]
+    [BepInPlugin("com.rpowergso.bopl8players", "Bopl 8 Players", "0.2.2")]
     public class Main : BaseUnityPlugin
     {
         internal static ManualLogSource Log;
         private Harmony harmony;
         private bool isVisible = true;
         private ConfigEntry<int> maxPlayers;
+        private ConfigEntry<bool> showStatsOverlay;
 
         private static IEnumerable<CodeInstruction> SteamManagerCreateFriendLobbyPatch(
             IEnumerable<CodeInstruction> instructions)
@@ -92,6 +93,8 @@ namespace MorePlayers
 
         void OnGUI()
         {
+            if (showStatsOverlay == null || !showStatsOverlay.Value || GameSession.inMenus || SteamManager.instance == null)
+                return;
             var players = PlayerHandler.Get().NumberOfPlayers();
             var playerInfoList = PlayerHandler.Get().PlayerList();
 
@@ -110,27 +113,6 @@ namespace MorePlayers
 
             GUI.color = UnityEngine.Color.white;
 
-
-
-            foreach (var player in SteamManager.instance.connectedPlayers) // avatar handling
-            {
-                if (player.hasAvatar)
-                {
-                    float yPosition = 10;
-                    float xPosition = 90;
-                    float width = 82;
-                    float height = 82;
-                    float spacing = 50;
-
-                    GUI.DrawTexture(new Rect(xPosition, yPosition, width, height), player.avatar);
-
-                    xPosition += spacing;
-                }
-                else
-                {
-                    Main.Log.LogWarning($"{player.steamName}, does not have an avatar, this can cause issues. Please set an avatar ASAP.");
-                }
-            }
 
 
             if (isVisible)
@@ -182,11 +164,12 @@ namespace MorePlayers
         private void Awake()
         {
             Log = Logger;
-            Log.LogInfo("Bopl 8 Players 0.2.1: online lobby UI update");
+            Log.LogInfo("Bopl 8 Players 0.2.2: native-size selector, clipped remote cards and Steam invites");
             Log.LogInfo("Logger Loaded");
 
             // Configuration
             maxPlayers = Config.Bind("General", "MaxPlayers", 8, "The maximum number of players allowed in a lobby (4-8).");
+            showStatsOverlay = Config.Bind("UI", "ShowStatsOverlay", false, "Show the optional statistics overlay during rounds. Hidden in menus.");
             Constants.MAX_PLAYERS = Math.Max(4, Math.Min(8, maxPlayers.Value));
 
 
@@ -247,7 +230,7 @@ namespace MorePlayers
         {
             if (!Constants.version.Contains("Bopl 8 Players"))
             {
-                Constants.version = $"{Constants.version} - Bopl 8 Players 0.2.1";
+                Constants.version = $"{Constants.version} - Bopl 8 Players 0.2.2";
             }
             __instance.GetComponent<TextMeshProUGUI>().text = Constants.version;
         }
