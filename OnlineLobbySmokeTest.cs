@@ -1,6 +1,7 @@
 #if BOPL8_UI_SMOKE
 using System;
 using System.Collections;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using HarmonyLib;
@@ -39,11 +40,20 @@ namespace MorePlayers
             var originalOverlay = OnlineInviteFriends.OpenOverlay;
             Steamworks.SteamId invitedLobby = default;
             OnlineInviteFriends.OpenOverlay = lobby => invitedLobby = lobby;
-            try { handler.ClickFindButton(); }
+            try
+            {
+                handler.ClickFindButton();
+                var inviteMenu = handler.GetComponent<OnlineInviteMenu>();
+                if (!inviteMenu.IsOpen || handler.characterSelectBox.enabled)
+                    throw new Exception("In-game invitation menu failed to open or capture input");
+                var steamButton = UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Button>().First(button => button.name == "SteamInviteWindow");
+                steamButton.onClick.Invoke();
+                inviteMenu.Close();
+            }
             finally { OnlineInviteFriends.OpenOverlay = originalOverlay; }
-            if ((ulong)invitedLobby != (ulong)SteamManager.instance.currentLobby.Id || handler.findPlayersText.text != "INVITE FRIENDS")
+            if ((ulong)invitedLobby != (ulong)SteamManager.instance.currentLobby.Id || handler.findPlayersText.text != "INVITE PLAYERS")
                 throw new Exception("Native invite button did not target the current lobby");
-            Main.Log.LogInfo("[UI smoke] PASS: native invite click targets the current Steam lobby (overlay mocked)");
+            Main.Log.LogInfo("[UI smoke] PASS: in-game invite menu opens; Steam window targets current lobby (overlay mocked)");
             for (int i = 0; i < expected; i++)
             {
                 var box = handler.networkPlayerBoxes[i];

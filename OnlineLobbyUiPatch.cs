@@ -162,8 +162,9 @@ namespace MorePlayers
     {
         static void Postfix(CharacterSelectHandler_online __instance)
         {
-            __instance.findPlayersText.text = "INVITE FRIENDS";
-            __instance.findPlayersStopText.text = "INVITE FRIENDS";
+            __instance.findPlayersText.text = "INVITE PLAYERS";
+            __instance.findPlayersStopText.text = "INVITE PLAYERS";
+            __instance.gameObject.AddComponent<OnlineInviteMenu>().Handler = __instance;
         }
     }
 
@@ -181,7 +182,7 @@ namespace MorePlayers
         internal static void Invite(CharacterSelectHandler_online handler)
         {
             if (!Available(handler)) return;
-            OpenOverlay(SteamManager.instance.currentLobby.Id);
+            handler.GetComponent<OnlineInviteMenu>().Open();
         }
     }
 

@@ -6,7 +6,7 @@ This repository updates the original [MoreBoplPlayers](https://github.com/Abstra
 
 ## Status
 
-Version 0.2.2 builds against Bopl Battle 2.5.1 with BepInEx 5.4.23.5. The local ability selector retains its vanilla size. Seven remote cards use a clipped two-row layout so off-screen animation states cannot spill into adjacent cards. The native Find Players control is repurposed as **Invite Friends**, with the original hover effects and controller navigation. It opens Steam's invite dialog for the current lobby and does not start public matchmaking.
+Version 0.2.2 builds against Bopl Battle 2.5.1 with BepInEx 5.4.23.5. The local ability selector retains its vanilla size. Seven remote cards use a clipped two-row layout so off-screen animation states cannot spill into adjacent cards. The native Find Players control is repurposed as **Invite Players**, with the original hover effects and controller navigation. It opens an in-game friend menu inside Online Play and does not start public matchmaking.
 
 The legacy statistics overlay is off by default and never shown in menus. To enable it during rounds, set `UI.ShowStatsOverlay = true` in the plugin configuration.
 
@@ -67,7 +67,7 @@ BepInEx/config/com.rpowergso.bopl8players.cfg
 
 For the local development installation on this computer, select the **Bopl8Dev** profile and use **Start modded**. The **Default** profile contains FixedMoreBopl, a different mod. Do not install both player-count mods in the same profile.
 
-In Online Play, the eight-player layout has your full-size local selection panel and seven smaller remote cards in two rows. Use **Invite Friends** in the menu to open Steam's lobby invitation dialog; everyone must install this same version. Steam Overlay must be enabled for the game. Public vanilla matchmaking remains disabled because the network protocol requires the mod on every computer.
+In Online Play, the eight-player layout has your full-size local selection panel and seven smaller remote cards in two rows. Use **Invite Players** to see online Steam friends who are not already in your lobby, then click **Invite** beside a name. The menu also has **Refresh**, **Close**, and **Steam Invite Window** controls. Invitations are sent only when you click an Invite button. Everyone must install this same version. Steam Overlay must be enabled to use the separate Steam invite window. Public vanilla matchmaking remains disabled because the network protocol requires the mod on every computer.
 
 ### Automated UI check
 
