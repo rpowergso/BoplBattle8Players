@@ -6,7 +6,22 @@ This repository updates the original [MoreBoplPlayers](https://github.com/Abstra
 
 ## Status
 
-Version 0.2.2 builds against Bopl Battle 2.5.1 with BepInEx 5.4.23.5. The local ability selector retains its vanilla size. Seven remote cards use a clipped two-row layout so off-screen animation states cannot spill into adjacent cards. The native Find Players control is repurposed as **Invite Players**, with the original hover effects and controller navigation. It opens an in-game friend menu inside Online Play and does not start public matchmaking.
+Version 0.2.3 builds against Bopl Battle 2.5.1 with BepInEx 5.4.23.5. The local ability selector retains its vanilla size. Seven remote cards use a clipped two-row layout so off-screen animation states cannot spill into adjacent cards. The native Find Players control is repurposed as **Invite Players**, with the original hover effects and controller navigation. It opens an in-game friend menu inside Online Play and does not start public matchmaking.
+
+### Connection diagnostics (0.2.3)
+
+Online Play now has a connection overlay, enabled by default. Press **F8** to show/hide it, or set `UI.ShowConnectionStats` in the configuration. It samples twice per second without sending additional packets and shows:
+
+- your local rendering FPS;
+- each connected Steam peer's transport round-trip ping;
+- Steam's in-order delivery success percentage, received here / reported by that peer;
+- during a round, the age of the last processed gameplay input and a `[WAITING]` indicator when the synchronized input buffer and that peer's input history are empty.
+
+Delivery quality is **not exact packet loss**: late/out-of-order delivery also affects it. Missing/unsupported Steam telemetry shows `n/a`, not a fabricated zero. These figures describe the connection between two computers, not proof of which person's internet is at fault. Compare everyone's overlay; low FPS with healthy connections can point toward local performance instead. Input age can also rise if the remote game stops processing or the local game stalls.
+
+Bopl uses deterministic lockstep, not an authoritative server that can safely freeze only one remote player. This update does not inject blank inputs, automatically kick friends, or bypass synchronization; doing so without shared decisions and recovery/rollback would risk divergent game states. It also clears the custom input buffer at each `Host.Init`, matching vanilla round-reset behavior and preventing stale inputs from surviving rounds.
+
+Validation: the 0.2.3 normal build compiles successfully. Runtime checks for the new overlay and real multi-peer statistics are still pending; the existing smoke harness has added reset/formatting/overlay-lifetime assertions. Earlier UI tests apply to 0.2.2, not proof of the new telemetry.
 
 The legacy statistics overlay is off by default and never shown in menus. To enable it during rounds, set `UI.ShowStatsOverlay = true` in the plugin configuration.
 

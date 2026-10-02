@@ -17,7 +17,7 @@ using static Mono.Security.X509.X520;
 
 namespace MorePlayers
 {
-    [BepInPlugin("com.rpowergso.bopl8players", "Bopl 8 Players", "0.2.2")]
+    [BepInPlugin("com.rpowergso.bopl8players", "Bopl 8 Players", "0.2.3")]
     public class Main : BaseUnityPlugin
     {
         internal static ManualLogSource Log;
@@ -164,12 +164,13 @@ namespace MorePlayers
         private void Awake()
         {
             Log = Logger;
-            Log.LogInfo("Bopl 8 Players 0.2.2: native-size selector, clipped remote cards and Steam invites");
+            Log.LogInfo("Bopl 8 Players 0.2.3: connection diagnostics and round buffer reset");
             Log.LogInfo("Logger Loaded");
 
             // Configuration
             maxPlayers = Config.Bind("General", "MaxPlayers", 8, "The maximum number of players allowed in a lobby (4-8).");
             showStatsOverlay = Config.Bind("UI", "ShowStatsOverlay", false, "Show the optional statistics overlay during rounds. Hidden in menus.");
+            ConnectionDiagnostics.Enabled = Config.Bind("UI", "ShowConnectionStats", true, "Show per-peer Steam ping, in-order delivery quality and input age in Online Play. Toggle with F8.");
             Constants.MAX_PLAYERS = Math.Max(4, Math.Min(8, maxPlayers.Value));
 
 
@@ -230,7 +231,7 @@ namespace MorePlayers
         {
             if (!Constants.version.Contains("Bopl 8 Players"))
             {
-                Constants.version = $"{Constants.version} - Bopl 8 Players 0.2.2";
+                Constants.version = $"{Constants.version} - Bopl 8 Players 0.2.3";
             }
             __instance.GetComponent<TextMeshProUGUI>().text = Constants.version;
         }

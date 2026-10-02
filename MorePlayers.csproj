@@ -4,7 +4,7 @@
     <TargetFramework>net46</TargetFramework>
     <AssemblyName>Bopl8Players</AssemblyName>
     <Description>Eight-player online lobbies for Bopl Battle 2.5.1.</Description>
-    <Version>0.2.2</Version>
+    <Version>0.2.3</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <BoplBattleDir Condition="'$(BoplBattleDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Bopl Battle</BoplBattleDir>

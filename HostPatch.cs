@@ -74,6 +74,7 @@ public class HostPatch_Init
     public static void Prefix()
     {
         Main.Log.LogInfo("Host::Init::Prefix");
+        HostPatch.InputBuffer.Clear();
         HostPatch.previousInputPacket = new MultiInputPacket();
     }
 }

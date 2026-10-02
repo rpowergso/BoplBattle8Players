@@ -20,6 +20,16 @@ namespace MorePlayers
         IEnumerator Run()
         {
             Main.Log.LogInfo("[UI smoke] started");
+            HostPatch.InputBuffer.Enqueue(new MultiInputPacket());
+            HostPatch.previousInputPacket = new MultiInputPacket();
+            HostPatch.previousInputPacket.inputPackets.Add(1, new InputPacket());
+            HostPatch_Init.Prefix();
+            if (HostPatch.InputBuffer.Count != 0 || HostPatch.previousInputPacket.inputPackets.Count != 0)
+                throw new Exception("Round reset retained stale custom inputs");
+            if (SteamConnectionStats.Delivery(0.975f) != (97.5f).ToString("0.0") + "%" ||
+                SteamConnectionStats.Delivery(-1) != "n/a" || SteamConnectionStats.Delivery(float.NaN) != "n/a")
+                throw new Exception("Steam delivery formatting is incorrect");
+            Main.Log.LogInfo("[UI smoke] PASS: custom round input reset and delivery formatting");
             yield return new WaitForSecondsRealtime(2);
             while (SteamManager.instance == null || (ulong)SteamManager.instance.currentLobby.Id == 0)
                 yield return null;
@@ -29,6 +39,8 @@ namespace MorePlayers
             SceneManager.LoadScene("ChSelect_online");
             yield return new WaitForSecondsRealtime(2);
             var handler = UnityEngine.Object.FindObjectOfType<CharacterSelectHandler_online>();
+            if (UnityEngine.Object.FindObjectsOfType<ConnectionDiagnostics>().Length != 1)
+                throw new Exception("Persistent connection overlay missing or duplicated");
             var frame = UnityEngine.Object.FindObjectOfType<SteamFrame>();
             int expected = Constants.MAX_PLAYERS - 1;
             if (handler.networkPlayerBoxes.Length != expected || handler.loadingCircles.Length != expected || frame.squares.Count != expected)
