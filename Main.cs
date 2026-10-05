@@ -17,7 +17,7 @@ using static Mono.Security.X509.X520;
 
 namespace MorePlayers
 {
-    [BepInPlugin("com.rpowergso.bopl8players", "Bopl 8 Players", "0.2.3")]
+    [BepInPlugin("com.rpowergso.bopl8players", "Bopl 8 Players", "0.3.2")]
     public class Main : BaseUnityPlugin
     {
         internal static ManualLogSource Log;
@@ -164,7 +164,7 @@ namespace MorePlayers
         private void Awake()
         {
             Log = Logger;
-            Log.LogInfo("Bopl 8 Players 0.2.3: connection diagnostics and round buffer reset");
+            Log.LogInfo("Bopl 8 Players 0.3.2: compact player roster, kit inspector and host kicks");
             Log.LogInfo("Logger Loaded");
 
             // Configuration
@@ -231,7 +231,7 @@ namespace MorePlayers
         {
             if (!Constants.version.Contains("Bopl 8 Players"))
             {
-                Constants.version = $"{Constants.version} - Bopl 8 Players 0.2.3";
+                Constants.version = $"{Constants.version} - Bopl 8 Players 0.3.2";
             }
             __instance.GetComponent<TextMeshProUGUI>().text = Constants.version;
         }

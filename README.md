@@ -6,7 +6,11 @@ This repository updates the original [MoreBoplPlayers](https://github.com/Abstra
 
 ## Status
 
-Version 0.2.3 builds against Bopl Battle 2.5.1 with BepInEx 5.4.23.5. The local ability selector retains its vanilla size. Seven remote cards use a clipped two-row layout so off-screen animation states cannot spill into adjacent cards. The native Find Players control is repurposed as **Invite Players**, with the original hover effects and controller navigation. It opens an in-game friend menu inside Online Play and does not start public matchmaking.
+Version 0.3.2 builds against Bopl Battle 2.5.1 with BepInEx 5.4.23.5. The local ability selector retains its vanilla size. A compact two-row roster uses the original rounded player badges, slime artwork and team colours, with names above each badge and an outlined selection highlight. The roster starts with four visible slots. **+ Add Player** reveals another slot, up to the configured maximum of eight, and opens the in-game friend invitation menu. Empty cards can also be clicked to invite friends. Joined players automatically reveal their slots; this is a display preference and Steam lobby capacity remains unchanged. Click a player to show their name, ready status, team, and full kit with ability icons and names in the side panel. Your own kit updates while selecting; remote kits become available when the player readies up, as provided by the game's lobby protocol.
+
+The lobby host can use **Kick Player** in the selected remote player's side panel. Kicks resolve the current connection by identity, then send a host-authenticated Steam-ID message; duplicate display names do not kick multiple people. Self-kicks, invalid indices, and kicks during gameplay are blocked. Every player must use 0.3.2 for this kick message.
+
+Validation: Release build and the isolated in-game UI smoke test pass, including invitations, name/kit inspection, kick targeting after connection reordering, sender/target guards, disconnection cleanup, and scene re-entry. Invitations and kick transport are mocked during these checks. Actual multi-computer invitations, kicks, and five-to-eight-player rounds still require testing.
 
 ### Connection diagnostics (0.2.3)
 
@@ -82,7 +86,9 @@ BepInEx/config/com.rpowergso.bopl8players.cfg
 
 For the local development installation on this computer, select the **Bopl8Dev** profile and use **Start modded**. The **Default** profile contains FixedMoreBopl, a different mod. Do not install both player-count mods in the same profile.
 
-In Online Play, the eight-player layout has your full-size local selection panel and seven smaller remote cards in two rows. Use **Invite Players** to see online Steam friends who are not already in your lobby, then click **Invite** beside a name. The menu also has **Refresh**, **Close**, and **Steam Invite Window** controls. Invitations are sent only when you click an Invite button. Everyone must install this same version. Steam Overlay must be enabled to use the separate Steam invite window. Public vanilla matchmaking remains disabled because the network protocol requires the mod on every computer.
+In Online Play, use **+ Add Player** or **Invite Players** to see online Steam friends who are not already in your lobby, then click **Invite** beside a name. Cards appear as people join (up to eight); the button invites real Steam players. Click a card to inspect its kit in the side panel. As host, select a remote player and click **Kick Player** to remove them from the lobby. The invite menu also has **Refresh**, **Close**, and **Steam Invite Window** controls. Invitations are sent only when you click an Invite button. Everyone must install this same version. Steam Overlay must be enabled to use the separate Steam invite window. Public vanilla matchmaking remains disabled because the network protocol requires the mod on every computer.
+
+To launch the installed development profile directly, run `powershell -ExecutionPolicy Bypass -File .\scripts\Launch-Bopl8Dev.ps1`, or select **Bopl8Dev** and **Start modded** in Thunderstore Mod Manager.
 
 ### Automated UI check
 

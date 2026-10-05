@@ -90,7 +90,7 @@ namespace MorePlayers
             scroll.viewport = viewport;
             scroll.content = content;
 
-            Text("VersionReminder", panel, new Vector2(0, -385), new Vector2(900, 80), "Friends need Bopl 8 Players 0.2.2 installed.", 34);
+            Text("VersionReminder", panel, new Vector2(0, -385), new Vector2(900, 80), "Friends need Bopl 8 Players 0.3.2 installed.", 34);
             Button("Refresh", panel, new Vector2(-285, -505), new Vector2(290, 95), "REFRESH", Refresh);
             Button("SteamInviteWindow", panel, new Vector2(165, -505), new Vector2(530, 95), "STEAM INVITE WINDOW", () =>
             {
@@ -147,7 +147,7 @@ namespace MorePlayers
         }
 
         void OnDestroy() { if (root != null) Destroy(root); }
-        static RectTransform Rect(string name, Transform parent, Vector2 position, Vector2 size)
+        internal static RectTransform Rect(string name, Transform parent, Vector2 position, Vector2 size)
         {
             var rect = (RectTransform)new GameObject(name, typeof(RectTransform)).transform;
             rect.SetParent(parent, false);
@@ -160,7 +160,7 @@ namespace MorePlayers
             rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero; rect.offsetMax = Vector2.zero;
         }
-        TextMeshProUGUI Text(string name, Transform parent, Vector2 position, Vector2 size, string value, float fontSize)
+        internal TextMeshProUGUI Text(string name, Transform parent, Vector2 position, Vector2 size, string value, float fontSize)
         {
             var text = Rect(name, parent, position, size).gameObject.AddComponent<TextMeshProUGUI>();
             text.font = Handler.findPlayersText.font;
@@ -174,7 +174,7 @@ namespace MorePlayers
             text.raycastTarget = false;
             return text;
         }
-        Button Button(string name, Transform parent, Vector2 position, Vector2 size, string label, UnityEngine.Events.UnityAction action)
+        internal Button Button(string name, Transform parent, Vector2 position, Vector2 size, string label, UnityEngine.Events.UnityAction action)
         {
             var rect = Rect(name, parent, position, size);
             var image = rect.gameObject.AddComponent<Image>();
