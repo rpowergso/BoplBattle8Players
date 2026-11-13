@@ -1,6 +1,7 @@
 #if BOPL8_UI_SMOKE
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -30,6 +31,14 @@ namespace MorePlayers
                 SteamConnectionStats.Delivery(-1) != "n/a" || SteamConnectionStats.Delivery(float.NaN) != "n/a")
                 throw new Exception("Steam delivery formatting is incorrect");
             Main.Log.LogInfo("[UI smoke] PASS: custom round input reset and delivery formatting");
+            var steamPeer = new SteamConnection { id = (Steamworks.SteamId)76561197960265729UL };
+            var gameplayClients = new List<Client> { new Client(5, steamPeer) };
+            if (!SteamSocketPatch_OnMessage.MatchesGameplaySender(gameplayClients, steamPeer.id, 5) ||
+                SteamSocketPatch_OnMessage.MatchesGameplaySender(gameplayClients, steamPeer.id, 6) ||
+                SteamSocketPatch_OnMessage.MatchesGameplaySender(gameplayClients, steamPeer.id, 0) ||
+                SteamSocketPatch_OnMessage.MatchesGameplaySender(gameplayClients, (Steamworks.SteamId)76561197960265730UL, 5))
+                throw new Exception("Gameplay packet attribution did not match the transport sender");
+            Main.Log.LogInfo("[UI smoke] PASS: gameplay sender-to-slot attribution rejects spoofed and unknown players");
             yield return new WaitForSecondsRealtime(2);
             while (SteamManager.instance == null || (ulong)SteamManager.instance.currentLobby.Id == 0)
                 yield return null;

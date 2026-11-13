@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using HarmonyLib;
 using Steamworks;
 using Steamworks.Data;
@@ -14,7 +15,7 @@ public static class SteamSocketPatch_OnMessage
 
     static bool Prefix(NetIdentity identity, IntPtr data, int size)
     {
-        if (size <= 0 || size > 2048)
+        if (data == IntPtr.Zero || size <= 0 || size > 2048)
         {
             return false;
         }
@@ -22,13 +23,24 @@ public static class SteamSocketPatch_OnMessage
         byte[] messageBuffer = new byte[size];
         System.Runtime.InteropServices.Marshal.Copy(data, messageBuffer, 0, size);
 
-        // Vanilla identifies six-byte packets by player id. Player ids 5 and 6
-        // collide with its lobby ping/ack markers. During gameplay, send all
-        // six-byte packets directly to the initialized lockstep host.
-        if (size == 6 && SteamManager.networkClientHandle != null &&
-            SteamManager.networkClientHandle.hasBeenInitialized)
+        var steamManager = SteamManager.instance;
+        var sender = identity.SteamId;
+        var lobbyId = steamManager == null ? default : steamManager.currentLobby.Id;
+        if (!sender.IsValid || !lobbyId.IsValid || !new Friend(sender).IsIn(lobbyId))
         {
-            SteamManager.networkClientHandle.ReadPacket(messageBuffer, size);
+            return false;
+        }
+
+        var lockstepHost = SteamManager.networkClientHandle;
+        if (!GameSession.inMenus && lockstepHost != null && lockstepHost.hasBeenInitialized &&
+            IsGameplayPacketSize(size))
+        {
+            // The game routes these packets by their first byte. Match it to the
+            // authenticated transport sender before passing the packet through.
+            if (MatchesGameplaySender(lockstepHost.clients, sender, messageBuffer[0]))
+            {
+                lockstepHost.ReadPacket(messageBuffer, size);
+            }
             return false;
         }
 
@@ -39,15 +51,7 @@ public static class SteamSocketPatch_OnMessage
             return true;
         }
 
-        if (!identity.SteamId.IsValid)
-        {
-            Main.Log.LogWarning("Ignored MorePlayers packet from an invalid Steam id.");
-            return false;
-        }
-
-        SteamId steamId = identity.SteamId;
-        if (!new Friend(steamId).IsIn(SteamManager.instance.currentLobby.Id) ||
-            !SteamManager.instance.currentLobby.IsOwnedBy(steamId))
+        if (!steamManager.currentLobby.IsOwnedBy(sender))
         {
             Main.Log.LogWarning("Ignored MorePlayers start packet from a non-host lobby member.");
             return false;
@@ -73,5 +77,18 @@ public static class SteamSocketPatch_OnMessage
         }
 
         return false;
+    }
+
+    private static bool IsGameplayPacketSize(int size)
+    {
+        // The six-byte ACKs for player slots five and six share the vanilla
+        // lobby ping markers. The other sizes are checksums and input updates.
+        return size == 6 || size == 14 || size == 67 || size == 83;
+    }
+
+    internal static bool MatchesGameplaySender(List<Client> clients, SteamId sender, byte playerId)
+    {
+        return playerId > 0 && playerId <= Constants.MAX_PLAYERS && clients != null &&
+            clients.Exists(client => client.Id == sender && client.PlayerId == playerId);
     }
 }

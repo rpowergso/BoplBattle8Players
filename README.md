@@ -4,6 +4,8 @@ An experimental BepInEx mod that expands Bopl Battle online Steam lobbies from f
 
 This repository updates the original [MoreBoplPlayers](https://github.com/AbstractMelon/MoreBoplPlayers) code for Bopl Battle 2.5.1. The original work is credited to AbstractMelon, suppergerrie2, and the Bopl Battle modding community. The project remains under the BSD 3-Clause license in `LICENSE`.
 
+Get the alpha ZIP, license, checksums, and installation instructions from the [GitHub release page](https://github.com/rpowergso/BoplBattle8Players/releases/tag/v0.3.2-alpha).
+
 ## Status
 
 Version 0.3.2 builds against Bopl Battle 2.5.1 with BepInEx 5.4.23.5. The local ability selector retains its vanilla size. A compact two-row roster uses the original rounded player badges, slime artwork and team colours, with names above each badge and an outlined selection highlight. The roster starts with four visible slots. **+ Add Player** reveals another slot, up to the configured maximum of eight, and opens the in-game friend invitation menu. Empty cards can also be clicked to invite friends. Joined players automatically reveal their slots; this is a display preference and Steam lobby capacity remains unchanged. Click a player to show their name, ready status, team, and full kit with ability icons and names in the side panel. Your own kit updates while selecting; remote kits become available when the player readies up, as provided by the game's lobby protocol.
@@ -11,6 +13,8 @@ Version 0.3.2 builds against Bopl Battle 2.5.1 with BepInEx 5.4.23.5. The local 
 The lobby host can use **Kick Player** in the selected remote player's side panel. Kicks resolve the current connection by identity, then send a host-authenticated Steam-ID message; duplicate display names do not kick multiple people. Self-kicks, invalid indices, and kicks during gameplay are blocked. Every player must use 0.3.2 for this kick message.
 
 Validation: Release build and the isolated in-game UI smoke test pass, including invitations, name/kit inspection, kick targeting after connection reordering, sender/target guards, disconnection cleanup, and scene re-entry. Invitations and kick transport are mocked during these checks. Actual multi-computer invitations, kicks, and five-to-eight-player rounds still require testing.
+
+Gameplay input updates, checksums, and acknowledgements are accepted only when the Steam sender belongs to the current lobby and matches the claimed player slot. Local game and BepInEx logs can contain Steam IDs. Redact those IDs before sharing a log publicly.
 
 ### Connection diagnostics (0.2.3)
 
