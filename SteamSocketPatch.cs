@@ -31,6 +31,11 @@ public static class SteamSocketPatch_OnMessage
             return false;
         }
 
+        if (LobbyMotion.TryHandlePacket(steamManager, sender, messageBuffer))
+        {
+            return false;
+        }
+
         var lockstepHost = SteamManager.networkClientHandle;
         if (!GameSession.inMenus && lockstepHost != null && lockstepHost.hasBeenInitialized &&
             IsGameplayPacketSize(size))

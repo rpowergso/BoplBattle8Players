@@ -4,15 +4,17 @@ An experimental BepInEx mod that expands Bopl Battle online Steam lobbies from f
 
 This repository updates the original [MoreBoplPlayers](https://github.com/AbstractMelon/MoreBoplPlayers) code for Bopl Battle 2.5.1. The original work is credited to AbstractMelon, suppergerrie2, and the Bopl Battle modding community. The project remains under the BSD 3-Clause license in `LICENSE`.
 
-Get the alpha ZIP, license, checksums, and installation instructions from the [GitHub release page](https://github.com/rpowergso/BoplBattle8Players/releases/tag/v0.3.2-alpha).
+Get the alpha ZIP, license, checksums, and installation instructions from the [GitHub release page](https://github.com/rpowergso/BoplBattle8Players/releases/tag/v0.3.3-alpha) or the [project website](https://rpowergso.github.io/BoplBattle8Players/).
 
 ## Status
 
-Version 0.3.2 builds against Bopl Battle 2.5.1 with BepInEx 5.4.23.5. The online lobby shows up to eight players in two rows of rounded rectangular cards with ready status and three ability slots beneath each player. Your own icons follow the original ability selector. Remote kits appear when players ready up and the game's protocol sends their choices.
+Version 0.3.3 builds against Bopl Battle 2.5.1 with BepInEx 5.4.23.5. The online lobby shows every configured slot in two rows of rounded squares. Occupied cards show ready status, the native animated blob and the same circular ability graphics and order as the right-hand editor. Remote kits appear when players ready up and the game's protocol sends their choices.
 
-The right panel contains the game's original local ability selector, keybind controls, and ready-up UI. Use **+ Add Player** to reveal another slot and invite Steam friends. Joined players reveal their slots automatically. The roster's small **×** controls let the host remove connected players before a match. Kicks use Steam IDs and check the sender's host status.
+The right panel contains the game's original local ability selector, keybind controls, and ready-up UI. Use **Invite Players** to invite Steam friends. The roster's **Kick** buttons let the host remove connected players before a match. Kicks use Steam IDs and check the sender's host status.
 
-Validation: Windows Release build and isolated online lobby smoke test pass for the roster, native editor, eight-slot Steam lobby, player-slot sender checks, host kick controls, disconnection cleanup, and scene re-entry. The test mocks invitation and kick transport. Live multi-computer invites, kicks, and five-to-eight-player rounds remain unverified.
+Use WASD, the arrow keys, or the mouse to edit your loadout before pressing Ready. Ready puts your blob on the shared island, which uses the long grass platform from Level 1 at its native scale. With the default bindings, use WASD and Space or the controller's left stick and south button to move and jump. Steer along the curve to follow the platform down toward the water. A controller's D-pad and Start still operate the top lobby buttons. Unready returns you to editing. Falling into the water plays Bopl's splash at the surface. A revive wisp travels from there to the orb, where the blob reappears and falls back onto the island.
+
+The local lobby review build was checked in Bopl Battle 2.5.1 with Steam connected. The in-game test exercises Ready, WASD loadout editing, movement, jump, both falls, respawn, and Unready. The eight-player layout uses simulated remote players. Live multi-computer movement, invites, kicks, and five-to-eight-player rounds remain unverified.
 
 Gameplay input updates, checksums, and acknowledgements are accepted only when the Steam sender belongs to the current lobby and matches the claimed player slot. Local game and BepInEx logs can contain Steam IDs. Redact those IDs before sharing a log publicly.
 
@@ -90,7 +92,7 @@ BepInEx/config/com.rpowergso.bopl8players.cfg
 
 For the local development installation on this computer, select the **Bopl8Dev** profile and use **Start modded**. The **Default** profile contains FixedMoreBopl, a different mod. Do not install both player-count mods in the same profile.
 
-In Online Play, use **+ Add Player** or **Invite Players** to see online Steam friends who are not already in your lobby, then click **Invite** beside a name. Cards appear as people join (up to eight); the button invites real Steam players. Read ability icons under each card and use the original local editor on the right to choose your abilities, change keybinds, or ready up. As host, use the **×** on a connected player card to remove them from the lobby. The invite menu also has **Refresh**, **Close**, and **Steam Invite Window** controls. Invitations are sent only when you click an Invite button. Everyone must install this same version. Steam Overlay must be enabled to use the separate Steam invite window. Public vanilla matchmaking remains disabled because the network protocol requires the mod on every computer.
+In Online Play, use **Invite Players** to see online Steam friends who are not already in your lobby, then click **Invite** beside a name. Open cards show all available slots; the button invites real Steam players. Read ability icons under each card and use the original local editor on the right to choose your abilities, change keybinds, or ready up. As host, use **Kick** on a connected player card to remove them from the lobby. The invite menu also has **Refresh**, **Close**, and **Steam Invite Window** controls. Invitations are sent only when you click an Invite button. Everyone must install this same version. Steam Overlay must be enabled to use the separate Steam invite window. Public vanilla matchmaking remains disabled because the network protocol requires the mod on every computer.
 
 To launch the installed development profile directly, run `powershell -ExecutionPolicy Bypass -File .\scripts\Launch-Bopl8Dev.ps1`, or select **Bopl8Dev** and **Start modded** in Thunderstore Mod Manager.
 

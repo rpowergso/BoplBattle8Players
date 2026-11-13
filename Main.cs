@@ -17,9 +17,10 @@ using static Mono.Security.X509.X520;
 
 namespace MorePlayers
 {
-    [BepInPlugin("com.rpowergso.bopl8players", "Bopl 8 Players", "0.3.2")]
+    [BepInPlugin("com.rpowergso.bopl8players", "Bopl 8 Players", Main.ModVersion)]
     public class Main : BaseUnityPlugin
     {
+        internal const string ModVersion = "0.3.3";
         internal static ManualLogSource Log;
         private Harmony harmony;
         private bool isVisible = true;
@@ -164,7 +165,7 @@ namespace MorePlayers
         private void Awake()
         {
             Log = Logger;
-            Log.LogInfo("Bopl 8 Players 0.3.2: compact player roster, inline ability icons and native local editor");
+            Log.LogInfo($"Bopl 8 Players {ModVersion}: eight-player roster and lobby practice island");
             Log.LogInfo("Logger Loaded");
 
             // Configuration
@@ -231,9 +232,11 @@ namespace MorePlayers
         {
             if (!Constants.version.Contains("Bopl 8 Players"))
             {
-                Constants.version = $"{Constants.version} - Bopl 8 Players 0.3.2";
+                Constants.version = $"{Constants.version} - Bopl 8 Players {Main.ModVersion}";
             }
-            __instance.GetComponent<TextMeshProUGUI>().text = Constants.version;
+            string version = Constants.version;
+            int suffix = version.IndexOf(" - Bopl 8 Players ", StringComparison.Ordinal);
+            __instance.GetComponent<TextMeshProUGUI>().text = suffix >= 0 ? version.Substring(0, suffix) : version;
         }
     }
 }
