@@ -8,119 +8,204 @@ using UnityEngine.UI;
 
 namespace MorePlayers
 {
-    // Keep native remote boxes alive for networking/animations; render a compact
-    // roster independently so selecting a player never edits their loadout.
+    // The original local selector owns input, keybinds, ability choices and ready state.
+    // The roster mirrors lobby state without changing how the game synchronizes it.
     internal sealed class OnlinePlayerRoster : MonoBehaviour
     {
+        const float PanelWidth = 1540;
+        const float PanelHeight = 1240;
         internal CharacterSelectHandler_online Handler;
-        internal SteamConnection SelectedPlayer;
-        internal bool LocalSelected;
         internal Button AddPlayerButton;
-        internal Button KickButton;
-        internal TextMeshProUGUI DetailName;
-        internal TextMeshProUGUI[] AbilityNames = new TextMeshProUGUI[3];
         internal int OpenSlots { get; private set; }
+        internal RectTransform LocalEditor { get; private set; }
         internal static Action<int> SendKick = index => SteamManager.instance.KickPlayer(index);
+#if BOPL8_UI_SMOKE
+        internal static string LocalNameOverride;
+#endif
+        internal Card[] Cards { get; private set; }
+        internal Sprite RoundedFill { get; private set; }
         GameObject root;
+        RectTransform canvas;
         RectTransform panel;
-        TextMeshProUGUI summary, detailStatus;
-        Button[] cards;
-        TextMeshProUGUI[] names, states;
-        Image[] portraits, cardBorders, icons = new Image[3];
+        TextMeshProUGUI summary;
         NamedSpriteList abilities;
+        Image startFill;
+        Image startOutline;
+        Image nativeStartFill;
+        Sprite roundedBorder;
+        Texture2D fillTexture, borderTexture;
+
+        internal sealed class Card
+        {
+            internal RectTransform Root;
+            internal TextMeshProUGUI Name, State;
+            internal Image Border, Fill, Portrait;
+            internal Button KickButton;
+            internal Image[] AbilityIcons = new Image[3];
+            internal TextMeshProUGUI[] EmptyIcons = new TextMeshProUGUI[3];
+        }
 
         void Start()
         {
             var ui = Handler.GetComponent<OnlineInviteMenu>();
-            var canvas = (RectTransform)Handler.GetComponentInParent<Canvas>().transform;
-            panel = OnlineInviteMenu.Rect("PlayerRoster", canvas, Vector2.zero, new Vector2(2200, 1250));
-            panel.anchorMin = panel.anchorMax = new Vector2(0.605f, 0.445f);
+            canvas = (RectTransform)Handler.GetComponentInParent<Canvas>().transform;
+            panel = OnlineInviteMenu.Rect("PlayerRoster", canvas, Vector2.zero, new Vector2(PanelWidth, PanelHeight));
+            panel.anchorMin = panel.anchorMax = new Vector2(0.385f, 0.445f);
             root = panel.gameObject;
+            LocalEditor = (RectTransform)Handler.characterSelectBox.transform;
+            PositionLocalEditor();
             abilities = Handler.characterSelectBox.abilityGrid.abilityIcons;
-            summary = ui.Text("RosterTitle", panel, new Vector2(-400, 585), new Vector2(1400, 90), "PLAYERS", 55);
-            int count = Constants.MAX_PLAYERS;
-            OpenSlots = Math.Min(4, count);
-            cards = new Button[count]; names = new TextMeshProUGUI[count];
-            states = new TextMeshProUGUI[count]; portraits = new Image[count];
-            cardBorders = new Image[count];
+            RoundedFill = MakeRoundedSprite(false, out fillTexture);
+            roundedBorder = MakeRoundedSprite(true, out borderTexture);
+            RestyleStartButton();
+            summary = ui.Text("RosterTitle", panel, new Vector2(0, 570), new Vector2(1400, 88), "PLAYERS", 54);
+            OpenSlots = Math.Min(4, Constants.MAX_PLAYERS);
+            Cards = new Card[Constants.MAX_PLAYERS];
             var native = Handler.networkPlayerBoxes[0];
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < Cards.Length; i++)
             {
-                int index = i;
-                var position = new Vector2(-870 + (i % 4) * 355, 265 - (i / 4) * 480);
-                cards[i] = ui.Button("InspectPlayer" + i, panel, position, new Vector2(325, 330), "", () => Select(index));
-                // Reuse the game's outlined, rounded player badge rather than a
-                // rectangular UI button. Keep the outline separate from its fill.
-                var border = cards[i].GetComponent<Image>();
-                CopySprite(border, native.borderImages[native.borderImages.Length - 1]);
-                cardBorders[i] = border;
-                var fillRect = OnlineInviteMenu.Rect("BadgeFill", cards[i].transform, Vector2.zero, new Vector2(307, 312));
-                fillRect.SetAsFirstSibling();
-                var fill = fillRect.gameObject.AddComponent<Image>();
-                CopySprite(fill, native.fillImages[native.fillImages.Length - 1]);
-                fill.raycastTarget = false;
-                fillRect.gameObject.AddComponent<Mask>().showMaskGraphic = true;
-                cards[i].targetGraphic = fill;
-                names[i] = ui.Text("PlayerName", cards[i].transform, new Vector2(0, 205), new Vector2(330, 80), "", 40);
-                names[i].enableAutoSizing = true; names[i].fontSizeMin = 24; names[i].fontSizeMax = 40;
-                var originalPortrait = native.characters[native.characters.Length - 1];
-                var originalBorder = native.borderImages[native.borderImages.Length - 1];
-                Vector2 badgeRatio = new Vector2(307 / originalBorder.rectTransform.rect.width, 312 / originalBorder.rectTransform.rect.height);
-                var portrait = OnlineInviteMenu.Rect("Character", fillRect,
-                    Vector2.Scale(originalPortrait.rectTransform.anchoredPosition, badgeRatio),
-                    Vector2.Scale(originalPortrait.rectTransform.rect.size, badgeRatio));
-                portraits[i] = portrait.gameObject.AddComponent<Image>();
-                CopySprite(portraits[i], originalPortrait);
-                portraits[i].preserveAspect = true; portraits[i].raycastTarget = false;
-                states[i] = ui.Text("PlayerState", cards[i].transform, new Vector2(0, 115), new Vector2(290, 70), "", 32);
+                var position = new Vector2(-570 + (i % 4) * 380, 275 - (i / 4) * 465);
+                Cards[i] = BuildCard(ui, native, i, position);
             }
-            AddPlayerButton = ui.Button("AddPlayer", panel, new Vector2(-390, -525), new Vector2(670, 100), "+ ADD PLAYER", AddPlayer);
-            CopySprite(AddPlayerButton.GetComponent<Image>(), Handler.findPlayersBorder);
-            var detail = OnlineInviteMenu.Rect("PlayerKit", panel, new Vector2(730, 0), new Vector2(720, 1150));
-            var detailBackground = detail.gameObject.AddComponent<Image>();
-            CopySprite(detailBackground, native.fillImages[native.fillImages.Length - 1]);
-            detailBackground.color = Handler.darkBlue;
-            DetailName = ui.Text("SelectedName", detail, new Vector2(0, 460), new Vector2(655, 160), "SELECT A PLAYER", 55);
-            DetailName.enableAutoSizing = true; DetailName.fontSizeMin = 28; DetailName.fontSizeMax = 55;
-            detailStatus = ui.Text("SelectedStatus", detail, new Vector2(0, 290), new Vector2(650, 160), "Click a card to view their full kit.", 36);
-            for (int i = 0; i < 3; i++)
-            {
-                var rect = OnlineInviteMenu.Rect("AbilityIcon" + i, detail, new Vector2(-220, 90 - i * 160), new Vector2(125, 125));
-                icons[i] = rect.gameObject.AddComponent<Image>(); icons[i].preserveAspect = true; icons[i].raycastTarget = false;
-                AbilityNames[i] = ui.Text("AbilityName" + i, detail, new Vector2(85, 90 - i * 160), new Vector2(400, 130), "", 40);
-                AbilityNames[i].enableAutoSizing = true; AbilityNames[i].fontSizeMin = 24; AbilityNames[i].fontSizeMax = 40;
-            }
-            KickButton = ui.Button("KickSelectedPlayer", detail, new Vector2(0, -440), new Vector2(620, 100), "KICK PLAYER", KickSelected);
-            CopySprite(KickButton.GetComponent<Image>(), Handler.findPlayersBorder);
-            KickButton.gameObject.SetActive(false);
-            // Suppress the old visual layout without stopping its Update methods.
+
+            AddPlayerButton = ui.Button("AddPlayer", panel, new Vector2(0, -545), new Vector2(630, 90), "+ ADD PLAYER", AddPlayer);
+            ApplySprite(AddPlayerButton.GetComponent<Image>(), RoundedFill, 0.4f);
+
+            // Keep native remote boxes and animations available to the game.
             foreach (var box in Handler.networkPlayerBoxes)
             {
                 var viewport = box.GetComponentInParent<RectMask2D>();
                 var visual = viewport != null ? viewport.transform.parent.gameObject : box.gameObject;
                 var group = visual.GetComponent<CanvasGroup>() ?? visual.AddComponent<CanvasGroup>();
-                group.alpha = 0; group.blocksRaycasts = false; group.interactable = false;
+                group.alpha = 0;
+                group.blocksRaycasts = false;
+                group.interactable = false;
             }
         }
 
-        static void CopySprite(Image destination, Image source)
+        Card BuildCard(OnlineInviteMenu ui, CSBox_online native, int index, Vector2 position)
         {
-            destination.sprite = source.sprite;
-            destination.type = source.type;
-            destination.pixelsPerUnitMultiplier = source.pixelsPerUnitMultiplier;
-        }
+            var card = new Card();
+            card.Root = OnlineInviteMenu.Rect("PlayerSlot" + (index + 1), panel, position, new Vector2(340, 256));
+            card.Fill = card.Root.gameObject.AddComponent<Image>();
+            ApplySprite(card.Fill, RoundedFill, 0.4f);
+            card.Fill.raycastTarget = false;
+            card.Root.gameObject.AddComponent<Mask>().showMaskGraphic = true;
 
-        internal void Select(int index)
-        {
-            if (index < 0 || index >= cards.Length) return;
-            LocalSelected = index == 0;
-            SelectedPlayer = index > 0 && index <= Handler.networkPlayerBoxes.Length
-                ? Handler.networkPlayerBoxes[index - 1].connectedPlayer : null;
-            if (!LocalSelected && (SelectedPlayer == null || !SelectedPlayer.Connected))
+            var source = native.characters[native.characters.Length - 1];
+            var portrait = OnlineInviteMenu.Rect("Character", card.Root, new Vector2(0, -28), new Vector2(268, 211));
+            card.Portrait = portrait.gameObject.AddComponent<Image>();
+            card.Portrait.sprite = source.sprite;
+            card.Portrait.preserveAspect = true;
+            card.Portrait.raycastTarget = false;
+
+            var borderRect = OnlineInviteMenu.Rect("SlotBorder", card.Root, Vector2.zero, card.Root.sizeDelta);
+            card.Border = borderRect.gameObject.AddComponent<Image>();
+            ApplySprite(card.Border, roundedBorder, 0.4f);
+            card.Border.raycastTarget = false;
+            card.State = ui.Text("PlayerState", card.Root, new Vector2(0, 84), new Vector2(255, 46), "", 28);
+
+            // Labels and abilities live outside the portrait clipping area.
+            card.Name = ui.Text("PlayerName", panel, position + new Vector2(0, 164), new Vector2(350, 66), "", 40);
+            card.Name.enableAutoSizing = true;
+            card.Name.fontSizeMin = 24;
+            card.Name.fontSizeMax = 40;
+            for (int i = 0; i < card.AbilityIcons.Length; i++)
             {
-                SelectedPlayer = null;
-                OnlineInviteFriends.Invite(Handler);
+                var iconPosition = position + new Vector2((i - 1) * 102, -183);
+                var tile = OnlineInviteMenu.Rect("AbilitySlot" + (i + 1), panel, iconPosition, new Vector2(84, 82));
+                var background = tile.gameObject.AddComponent<Image>();
+                ApplySprite(background, RoundedFill, 1.0f);
+                background.color = new Color(0.05f, 0.23f, 0.38f, 0.82f);
+                background.raycastTarget = false;
+                var icon = OnlineInviteMenu.Rect("Icon", tile, Vector2.zero, new Vector2(67, 65)).gameObject.AddComponent<Image>();
+                icon.preserveAspect = true;
+                icon.raycastTarget = false;
+                card.AbilityIcons[i] = icon;
+                card.EmptyIcons[i] = ui.Text("Empty", tile, Vector2.zero, new Vector2(60, 60), "–", 32);
             }
+
+            if (index > 0)
+            {
+                card.KickButton = ui.Button("KickPlayer" + (index + 1), card.Root,
+                    new Vector2(125, 83), new Vector2(55, 49), "×", () => Kick(GetPeer(index)));
+                ApplySprite(card.KickButton.GetComponent<Image>(), RoundedFill, 1.5f);
+            }
+            return card;
+        }
+
+        void PositionLocalEditor()
+        {
+            var position = canvas.InverseTransformPoint(LocalEditor.position);
+            position.x = Mathf.Lerp(canvas.rect.xMin, canvas.rect.xMax, 0.795f);
+            LocalEditor.position = canvas.TransformPoint(position);
+        }
+
+        void RestyleStartButton()
+        {
+            var border = Handler.startBorder;
+            nativeStartFill = Handler.startButton.GetComponent<Image>();
+            // Preserve native graphics and raycasts for input and hover state.
+            if (nativeStartFill != null) nativeStartFill.canvasRenderer.cullTransparentMesh = false;
+            border.canvasRenderer.cullTransparentMesh = false;
+            startFill = BuildStartGraphic("StartFill", RoundedFill, 0);
+            startOutline = BuildStartGraphic("StartOutline", roundedBorder, 1);
+        }
+
+        Image BuildStartGraphic(string name, Sprite sprite, int sibling)
+        {
+            var rect = OnlineInviteMenu.Rect(name, Handler.startButton.transform, Vector2.zero, Vector2.zero);
+            rect.SetSiblingIndex(sibling);
+            rect.anchorMin = new Vector2(0.22f, 0);
+            rect.anchorMax = new Vector2(0.78f, 1);
+            var image = rect.gameObject.AddComponent<Image>();
+            ApplySprite(image, sprite, 0.42f);
+            image.raycastTarget = false;
+            return image;
+        }
+
+        void RefreshStartGraphics()
+        {
+            var border = Handler.startBorder;
+            var stateColor = border.color;
+            startFill.color = nativeStartFill != null && nativeStartFill != border ? nativeStartFill.color : stateColor;
+            startOutline.color = new Color(Handler.darkBlue.r, Handler.darkBlue.g, Handler.darkBlue.b, stateColor.a);
+            if (nativeStartFill != null) nativeStartFill.canvasRenderer.SetAlpha(0);
+            border.canvasRenderer.SetAlpha(0);
+        }
+
+        static void ApplySprite(Image image, Sprite sprite, float pixelsPerUnitMultiplier)
+        {
+            image.sprite = sprite;
+            image.overrideSprite = sprite;
+            image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = pixelsPerUnitMultiplier;
+        }
+
+        static Sprite MakeRoundedSprite(bool border, out Texture2D texture)
+        {
+            const int size = 64;
+            const float cornerRadius = 10f;
+            const float stroke = 2.5f;
+            texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            texture.name = border ? "BoplRoundedBorder" : "BoplRoundedFill";
+            texture.wrapMode = TextureWrapMode.Clamp;
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                var point = new Vector2(Mathf.Abs(x + 0.5f - size / 2f), Mathf.Abs(y + 0.5f - size / 2f));
+                var distance = point - Vector2.one * (size / 2f - cornerRadius);
+                float edge = new Vector2(Mathf.Max(0, distance.x), Mathf.Max(0, distance.y)).magnitude
+                    + Mathf.Min(Mathf.Max(distance.x, distance.y), 0) - cornerRadius;
+                float opacity = Mathf.Clamp01(0.5f - edge);
+                if (border) opacity *= Mathf.Clamp01(edge + stroke + 0.5f);
+                pixels[y * size + x] = new Color(1f, 1f, 1f, opacity);
+            }
+            texture.SetPixels(pixels);
+            texture.Apply(false, true);
+            var slice = new Vector4(12, 12, 12, 12);
+            return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect, slice);
         }
 
         internal void AddPlayer()
@@ -130,101 +215,111 @@ namespace MorePlayers
             OnlineInviteFriends.Invite(Handler);
         }
 
-        internal bool CanKickSelected()
+        SteamConnection GetPeer(int index) => index == 0 ? null : Handler.networkPlayerBoxes[index - 1].connectedPlayer;
+
+        internal bool CanKick(SteamConnection peer)
         {
             var manager = SteamManager.instance;
             return manager != null && SteamClient.IsValid && manager.currentLobby.IsOwnedBy(SteamClient.SteamId)
-                && !Handler.isStartingAGame && Handler.goingBackOperation == null && SelectedPlayer != null
-                && SelectedPlayer.Connected && !SelectedPlayer.beingKicked && SelectedPlayer.id != SteamClient.SteamId
-                && manager.connectedPlayers.Contains(SelectedPlayer);
+                && !Handler.isStartingAGame && Handler.goingBackOperation == null && peer != null
+                && peer.Connected && !peer.beingKicked && peer.id != SteamClient.SteamId
+                && manager.connectedPlayers.Contains(peer);
         }
 
-        internal void KickSelected()
+        internal void Kick(SteamConnection peer)
         {
-            if (!CanKickSelected()) return;
-            // Resolve identity at click time: disconnected peers can reorder the list.
-            int index = SteamManager.instance.connectedPlayers.IndexOf(SelectedPlayer);
-            SendKick(index);
-            SelectedPlayer = null;
+            if (CanKick(peer)) SendKick(SteamManager.instance.connectedPlayers.IndexOf(peer));
         }
 
         void LateUpdate()
         {
             if (root == null) return;
-            var canvas = (RectTransform)panel.parent;
-            float scale = Mathf.Min(canvas.rect.width * 0.59f / 2200, canvas.rect.height * 0.63f / 1250);
+            float scale = Mathf.Min(canvas.rect.width * 0.58f / PanelWidth, canvas.rect.height * 0.61f / PanelHeight);
             panel.localScale = Vector3.one * scale;
             bool active = Handler.goingBackOperation == null && !Handler.isStartingAGame;
             root.SetActive(active);
             if (!active) return;
-            int present = 1;
-            for (int i = 0; i < cards.Length; i++)
+            PositionLocalEditor();
+            RefreshStartGraphics();
+
+            int present = 0;
+            for (int i = 0; i < Cards.Length; i++)
             {
-                var peer = i == 0 ? null : Handler.networkPlayerBoxes[i - 1].connectedPlayer;
+                var peer = GetPeer(i);
                 bool exists = i == 0 || peer != null && peer.Connected;
-                if (exists) OpenSlots = Math.Max(OpenSlots, i + 1);
-                cards[i].gameObject.SetActive(exists || i < OpenSlots);
-                portraits[i].enabled = exists;
-                if (!exists)
+                if (exists)
                 {
-                    names[i].text = "PLAYER " + (i + 1);
-                    states[i].text = "+ INVITE PLAYER";
-                    states[i].rectTransform.anchoredPosition = Vector2.zero;
-                    states[i].color = names[i].color = Handler.darkBlue;
-                    cardBorders[i].color = Handler.disabledBlue;
-                    cards[i].interactable = OnlineInviteFriends.Available(Handler);
-                    var emptyPalette = cards[i].colors;
-                    emptyPalette.normalColor = Handler.disabledWhite;
-                    cards[i].colors = emptyPalette;
-                    continue;
+                    present++;
+                    OpenSlots = Math.Max(OpenSlots, i + 1);
                 }
-                cards[i].interactable = true;
-                if (i > 0) present++;
-                names[i].text = i == 0 ? SteamClient.Name + " (YOU)" : peer.steamName;
-                bool ready = i == 0 ? CharacterSelectHandler_online.IsLocalPlayerReady() : peer.lobby_isReady;
-                states[i].text = ready ? "READY" : "CHOOSING KIT";
-                states[i].rectTransform.anchoredPosition = new Vector2(0, 115);
-                int color = i == 0 ? Handler.characterSelectBox.playerInit.color : peer.lobby_color;
-                for (int c = 0; c < Handler.playerColors.Length; c++)
-                    if (Handler.playerColors[c].colorIndex == color) portraits[i].material = Handler.playerColors[c].uiMaterial;
-                var palette = cards[i].colors;
-                int teamIndex = i == 0 ? Handler.characterSelectBox.playerInit.team : peer.lobby_team;
-                var teamColors = Handler.networkPlayerBoxes[0].teamColors;
-                var teamColor = teamColors.teamColors[Mathf.Clamp(teamIndex, 0, teamColors.Length - 1)];
-                bool selectedCard = i == 0 && LocalSelected || peer != null && peer == SelectedPlayer;
-                cardBorders[i].color = selectedCard ? Handler.orange : teamColor.border;
-                states[i].color = names[i].color = teamColor.border;
-                palette.normalColor = teamColor.fill;
-                palette.highlightedColor = teamColor.saturated;
-                cards[i].colors = palette;
+                UpdateCard(Cards[i], i, peer, exists);
             }
             summary.text = "PLAYERS  " + present + " / " + Constants.MAX_PLAYERS;
             AddPlayerButton.interactable = OnlineInviteFriends.Available(Handler);
             AddPlayerButton.GetComponentInChildren<TextMeshProUGUI>().text = OpenSlots < Constants.MAX_PLAYERS ? "+ ADD PLAYER" : "INVITE PLAYERS";
-            if (SelectedPlayer != null && !SelectedPlayer.Connected) SelectedPlayer = null;
-            bool selected = LocalSelected || SelectedPlayer != null;
-            DetailName.text = LocalSelected ? SteamClient.Name + " (YOU)" : SelectedPlayer?.steamName ?? "SELECT A PLAYER";
-            int team = LocalSelected ? Handler.characterSelectBox.playerInit.team : SelectedPlayer?.lobby_team ?? 0;
-            bool selectedReady = LocalSelected ? CharacterSelectHandler_online.IsLocalPlayerReady() : SelectedPlayer?.lobby_isReady == true;
-            detailStatus.text = selected ? (selectedReady ? "READY" : "CHOOSING KIT") + "  /  TEAM " + (team + 1) : "Click a card to view their full kit.";
-            for (int i = 0; i < 3; i++)
-            {
-                bool show = selected && i < Settings.Get().NumberOfAbilities;
-                icons[i].enabled = show;
-                AbilityNames[i].gameObject.SetActive(show);
-                if (!show) continue;
-                var local = Handler.characterSelectBox.playerInit;
-                int ability = LocalSelected ? (i == 0 ? local.ability0 : i == 1 ? local.ability1 : local.ability2)
-                    : (i == 0 ? SelectedPlayer.lobby_ability1 : i == 1 ? SelectedPlayer.lobby_ability2 : SelectedPlayer.lobby_ability3);
-                bool known = (LocalSelected || selectedReady) && abilities != null && ability >= 0 && ability < abilities.sprites.Count;
-                icons[i].sprite = known ? abilities.sprites[ability].sprite : null;
-                icons[i].enabled = known;
-                AbilityNames[i].text = known ? LocalizedText.localizationTable.GetText(abilities.sprites[ability].name, Settings.Get().Language) : "Choosing...";
-            }
-            KickButton.gameObject.SetActive(CanKickSelected());
         }
 
-        void OnDestroy() { if (root != null) Destroy(root); }
+        void UpdateCard(Card card, int index, SteamConnection peer, bool exists)
+        {
+            bool visible = index < OpenSlots;
+            bool local = index == 0;
+            card.Root.gameObject.SetActive(visible);
+            card.Name.gameObject.SetActive(visible);
+            card.Portrait.enabled = exists;
+            if (card.KickButton != null) card.KickButton.gameObject.SetActive(CanKick(peer));
+
+            bool ready = exists && (local ? CharacterSelectHandler_online.IsLocalPlayerReady() : peer.lobby_isReady);
+            var kit = Handler.characterSelectBox.playerInit;
+            string localName = SteamClient.Name;
+#if BOPL8_UI_SMOKE
+            localName = LocalNameOverride ?? localName;
+#endif
+            card.Name.text = local ? localName + " (YOU)" : exists ? peer.steamName : "PLAYER " + (index + 1);
+            card.State.text = exists ? (ready ? "READY" : "CHOOSING KIT") : "OPEN SLOT";
+            card.State.rectTransform.anchoredPosition = new Vector2(0, exists ? 84 : 0);
+            if (exists)
+            {
+                int color = local ? kit.color : peer.lobby_color;
+                for (int i = 0; i < Handler.playerColors.Length; i++)
+                    if (Handler.playerColors[i].colorIndex == color) card.Portrait.material = Handler.playerColors[i].uiMaterial;
+                int teamIndex = local ? kit.team : peer.lobby_team;
+                var teamColors = Handler.networkPlayerBoxes[0].teamColors;
+                var team = teamColors.teamColors[Mathf.Clamp(teamIndex, 0, teamColors.Length - 1)];
+                card.Fill.color = team.fill;
+                card.Border.color = card.Name.color = card.State.color = team.border;
+            }
+            else
+            {
+                card.Fill.color = Handler.disabledWhite;
+                card.Border.color = Handler.disabledBlue;
+                card.Name.color = card.State.color = Handler.darkBlue;
+            }
+
+            int abilityCount = Settings.Get().NumberOfAbilities;
+            for (int i = 0; i < card.AbilityIcons.Length; i++)
+            {
+                int ability = -1;
+                if (local)
+                    ability = i == 0 ? kit.ability0 : i == 1 ? kit.ability1 : kit.ability2;
+                else if (ready)
+                    ability = i == 0 ? peer.lobby_ability1 : i == 1 ? peer.lobby_ability2 : peer.lobby_ability3;
+                bool known = i < abilityCount && abilities != null && ability >= 0 && ability < abilities.sprites.Count;
+                var icon = card.AbilityIcons[i];
+                icon.transform.parent.gameObject.SetActive(visible);
+                icon.sprite = known ? abilities.sprites[ability].sprite : null;
+                icon.enabled = known;
+                card.EmptyIcons[i].enabled = !known;
+            }
+        }
+
+        void OnDestroy()
+        {
+            if (root != null) Destroy(root);
+            if (RoundedFill != null) Destroy(RoundedFill);
+            if (roundedBorder != null) Destroy(roundedBorder);
+            if (fillTexture != null) Destroy(fillTexture);
+            if (borderTexture != null) Destroy(borderTexture);
+        }
     }
 
     [HarmonyPatch(typeof(CharacterSelectHandler_online), "Start")]

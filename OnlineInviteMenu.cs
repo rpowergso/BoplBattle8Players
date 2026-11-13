@@ -17,12 +17,13 @@ namespace MorePlayers
         internal CharacterSelectHandler_online Handler;
         internal static Func<SteamId, bool> SendInvite = id => SteamManager.instance.currentLobby.InviteFriend(id);
         internal bool IsOpen => root != null && root.activeSelf;
-        internal bool BlocksInput => IsOpen || closedFrame == Time.frameCount;
+        internal bool BlocksInput => IsOpen || restoringInput || closedFrame == Time.frameCount;
         internal int FriendCount => rows.Count;
         GameObject root;
         RectTransform content;
         TextMeshProUGUI status;
         bool previousInputEnabled;
+        bool restoringInput;
         int closedFrame = -1;
         GameObject previousSelection;
         readonly List<Tuple<Button, bool>> rows = new List<Tuple<Button, bool>>();
@@ -30,7 +31,8 @@ namespace MorePlayers
         internal void Open()
         {
             if (IsOpen || !OnlineInviteFriends.Available(Handler)) return;
-            previousInputEnabled = Handler.characterSelectBox.enabled;
+            if (!restoringInput)
+                previousInputEnabled = Handler.characterSelectBox.enabled;
             Handler.characterSelectBox.enabled = false;
             previousSelection = EventSystem.current?.currentSelectedGameObject;
             if (root == null) Build();
@@ -43,6 +45,7 @@ namespace MorePlayers
             if (!IsOpen) return;
             root.SetActive(false);
             closedFrame = Time.frameCount;
+            restoringInput = true;
             StartCoroutine(RestoreInput());
             if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(previousSelection);
         }
@@ -50,7 +53,9 @@ namespace MorePlayers
         IEnumerator RestoreInput()
         {
             yield return null;
-            if (!IsOpen && Handler != null) Handler.characterSelectBox.enabled = previousInputEnabled;
+            if (IsOpen || Handler == null) yield break;
+            Handler.characterSelectBox.enabled = previousInputEnabled;
+            restoringInput = false;
         }
 
         void Build()

@@ -164,7 +164,7 @@ namespace MorePlayers
         private void Awake()
         {
             Log = Logger;
-            Log.LogInfo("Bopl 8 Players 0.3.2: compact player roster, kit inspector and host kicks");
+            Log.LogInfo("Bopl 8 Players 0.3.2: compact player roster, inline ability icons and native local editor");
             Log.LogInfo("Logger Loaded");
 
             // Configuration

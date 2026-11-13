@@ -21,6 +21,7 @@ namespace MorePlayers
         IEnumerator Run()
         {
             Main.Log.LogInfo("[UI smoke] started");
+            OnlinePlayerRoster.LocalNameOverride = "Test player 1";
             HostPatch.InputBuffer.Enqueue(new MultiInputPacket());
             HostPatch.previousInputPacket = new MultiInputPacket();
             HostPatch.previousInputPacket.inputPackets.Add(1, new InputPacket());
@@ -122,10 +123,24 @@ namespace MorePlayers
             roster.AddPlayerButton.onClick.Invoke();
             if (!handler.GetComponent<OnlineInviteMenu>().IsOpen) throw new Exception("Add Player did not open invitations");
             handler.GetComponent<OnlineInviteMenu>().Close();
-            roster.Select(5);
-            yield return null;
-            if (roster.DetailName.text != fakePlayers[4].steamName || roster.AbilityNames.Any(label => string.IsNullOrEmpty(label.text)))
-                throw new Exception("Selected player's kit/name missing");
+            yield return new WaitForSecondsRealtime(0.2f);
+            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(BepInEx.Paths.PluginPath, "ui-0.3.2.png"));
+            if (roster.LocalEditor != handler.characterSelectBox.transform ||
+                handler.characterSelectBox.abilityGrid == null || handler.characterSelectBox.rebindImageControllerImage == null ||
+                handler.characterSelectBox.animateReady == null || !handler.characterSelectBox.isActiveAndEnabled)
+                throw new Exception($"Original local editor missing: transform={roster.LocalEditor == handler.characterSelectBox.transform}, grid={handler.characterSelectBox.abilityGrid != null}, keybind={handler.characterSelectBox.rebindImageControllerImage != null}, ready={handler.characterSelectBox.animateReady != null}, enabled={handler.characterSelectBox.isActiveAndEnabled}");
+            var editorPosition = roster.LocalEditor.GetComponentInParent<Canvas>().transform.InverseTransformPoint(roster.LocalEditor.position);
+            var startOutline = handler.startButton.transform.Find("StartOutline")?.GetComponent<UnityEngine.UI.Image>();
+            if (editorPosition.x <= 0 || startOutline == null || startOutline.sprite.border == Vector4.zero || startOutline.rectTransform.anchorMin.x <= 0)
+                throw new Exception("Native editor is outside its right panel or Start is missing the rounded sprite");
+            for (int i = 0; i < roster.Cards.Length; i++)
+            {
+                var card = roster.Cards[i];
+                if (card.Root.GetComponent<UnityEngine.UI.Button>() != null || card.Border.sprite.border == Vector4.zero)
+                    throw new Exception("Roster card is interactive or lacks rounded corners");
+                if (card.AbilityIcons.Length != 3 || card.AbilityIcons.Any(icon => !icon.enabled || icon.sprite == null))
+                    throw new Exception("Ready player did not show three abilities under the card");
+            }
             var manager = SteamManager.instance;
             var originalKick = OnlinePlayerRoster.SendKick;
             int kickedIndex = -1;
@@ -133,15 +148,15 @@ namespace MorePlayers
             {
                 manager.connectedPlayers.Add(fakePlayers[0]);
                 manager.connectedPlayers.Add(fakePlayers[4]);
-                if (!roster.CanKickSelected()) throw new Exception("Host cannot kick selected remote player");
+                if (!roster.CanKick(fakePlayers[4])) throw new Exception("Host cannot kick this remote player");
                 manager.connectedPlayers.Remove(fakePlayers[0]);
                 int expectedKickIndex = manager.connectedPlayers.IndexOf(fakePlayers[4]);
                 OnlinePlayerRoster.SendKick = index => kickedIndex = index;
-                roster.KickSelected();
-                if (kickedIndex != expectedKickIndex || roster.SelectedPlayer != null)
+                roster.Cards[5].KickButton.onClick.Invoke();
+                if (kickedIndex != expectedKickIndex)
                     throw new Exception("Kick did not resolve current player index");
-                roster.Select(0);
-                if (roster.CanKickSelected() || HostOnlyKickPatch.Prefix(manager, -1) || HostOnlyKickPatch.Prefix(manager, manager.connectedPlayers.Count))
+                if (roster.CanKick(null) || roster.Cards[0].KickButton != null || HostOnlyKickPatch.Prefix(manager, -1) ||
+                    HostOnlyKickPatch.Prefix(manager, manager.connectedPlayers.Count))
                     throw new Exception("Kick guard allowed local player or invalid index");
                 var originalSend = HostOnlyKickPatch.SendMessage;
                 string kickMessage = null;
@@ -165,9 +180,7 @@ namespace MorePlayers
                 manager.connectedPlayers.Remove(fakePlayers[0]);
                 manager.connectedPlayers.Remove(fakePlayers[4]);
             }
-            roster.Select(5);
-            yield return new WaitForSecondsRealtime(0.2f);
-            Main.Log.LogInfo("[UI smoke] PASS: Add Player, selected name/full kit, kick identity after reorder, local/index guards, host-authenticated Steam-ID kick messages (send mocked)");
+            Main.Log.LogInfo("[UI smoke] PASS: passive rounded slots, three ability icons per player, native editor and Start controls, and Steam-ID kicks (send mocked)");
             ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(BepInEx.Paths.PluginPath, "ui-0.3.2.png"));
             yield return new WaitForSecondsRealtime(1);
             for (int i = 0; i < expected; i++) fakePlayers[i].Disconnect();
@@ -176,7 +189,7 @@ namespace MorePlayers
                 if (handler.networkPlayerBoxes[i].GetComponent<CanvasGroup>().alpha > 0.01f)
                     throw new Exception("Disconnected display did not hide");
             Main.Log.LogInfo("[UI smoke] PASS: disconnected cards hide cleanly");
-            if (roster.SelectedPlayer != null) throw new Exception("Inspector retained disconnected peer");
+            if (roster.Cards.Skip(1).Any(card => card.AbilityIcons.Any(icon => icon.enabled))) throw new Exception("Roster retained a disconnected peer's kit");
             SceneManager.LoadScene("MainMenu");
             yield return new WaitForSecondsRealtime(1);
             SceneManager.LoadScene("ChSelect_online");
