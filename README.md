@@ -4,6 +4,8 @@ Play Bopl Battle with up to 8 players in a private Steam lobby. The host can set
 
 [Install from Thunderstore](https://thunderstore.io/c/bopl-battle/p/rpowergso/Bopl8Players/) · [GitHub release and download](https://github.com/rpowergso/BoplBattle8Players/releases/tag/v0.3.4-alpha)
 
+[Report a bug](https://github.com/rpowergso/BoplBattle8Players/issues/new?template=bug_report.yml) · [Share feedback or suggest a feature](https://github.com/rpowergso/BoplBattle8Players/issues/new?template=feedback.yml)
+
 ## Features
 
 - Invite Steam friends in-game. Hosts can remove players before a match.
