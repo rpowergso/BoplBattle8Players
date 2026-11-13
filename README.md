@@ -2,12 +2,12 @@
 
 Play Bopl Battle with up to 8 players in a private Steam lobby. The host can set the lobby size from 4 to 8.
 
-[Install from Thunderstore](https://thunderstore.io/c/bopl-battle/p/rpowergso/Bopl8Players/) · [GitHub release and download](https://github.com/rpowergso/BoplBattle8Players/releases/tag/v0.3.3-alpha)
+[Install from Thunderstore](https://thunderstore.io/c/bopl-battle/p/rpowergso/Bopl8Players/) · [GitHub release and download](https://github.com/rpowergso/BoplBattle8Players/releases/tag/v0.3.4-alpha)
 
 ## Features
 
 - Invite Steam friends in-game. Hosts can remove players before a match.
-- See who’s ready and which abilities they picked. Use the standard loadout and keybind controls.
+- See who’s ready and use the standard loadout and keybind controls. Hosts can turn on **Show Items** to display ability icons on the roster for everyone. Icons are hidden by default.
 - Practice movement and jumping on a shared island after you ready up. Supports keyboard and controller.
 - Press **F8** to see FPS, peer ping, and connection stats.
 
@@ -17,7 +17,7 @@ Play Bopl Battle with up to 8 players in a private Steam lobby. The host can set
 2. Have everyone install the same mod version and choose **Start modded**.
 3. In the game, open **Online Play** → **Invite Players**.
 
-For manual installation, download the ZIP from the [GitHub release](https://github.com/rpowergso/BoplBattle8Players/releases/tag/v0.3.3-alpha), then place `Bopl8Players.dll` in the modded profile’s `BepInEx/plugins/Bopl8Players/` folder.
+For manual installation, download the ZIP from the [GitHub release](https://github.com/rpowergso/BoplBattle8Players/releases/tag/v0.3.4-alpha), then place `Bopl8Players.dll` in the modded profile’s `BepInEx/plugins/Bopl8Players/` folder.
 
 ## Compatibility
 

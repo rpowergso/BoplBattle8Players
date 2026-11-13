@@ -25,11 +25,15 @@ namespace MorePlayers
         const float RosterBottom = PracticeCenter - PracticeHeight / 2;
         // The card uses the central portion of the SmallCapsule sprite.
         const float PlatformGrassTop = 469f / 594;
+        const float ItemsRefreshInterval = 0.2f;
+        internal const string ShowItemsLobbyKey = "bopl8players_show_items";
         internal CharacterSelectHandler_online Handler;
         internal RectTransform LocalEditor { get; private set; }
+        internal Button ItemsVisibilityButton { get; private set; }
         internal static Action<int> SendKick = index => SteamManager.instance.KickPlayer(index);
 #if BOPL8_UI_SMOKE
         internal static string LocalNameOverride;
+        internal static Func<Lobby, bool> IsLobbyOwnerOverride;
 #endif
         internal Card[] Cards { get; private set; }
         internal Sprite RoundedFill { get; private set; }
@@ -39,6 +43,11 @@ namespace MorePlayers
         Canvas lobbyCanvas;
         RectTransform panel;
         TextMeshProUGUI summary;
+        TextMeshProUGUI itemsVisibilityLabel;
+        OnlineInviteMenu inviteMenu;
+        SteamId itemsLobbyId;
+        float nextItemsRefresh;
+        bool showItems;
         NamedSpriteList abilities;
         LobbyMotion motion;
         Texture2D fillTexture, borderTexture;
@@ -89,7 +98,7 @@ namespace MorePlayers
 
         void Start()
         {
-            var ui = Handler.GetComponent<OnlineInviteMenu>();
+            var ui = inviteMenu = Handler.GetComponent<OnlineInviteMenu>();
             lobbyCanvas = Handler.GetComponentInParent<Canvas>();
             canvas = (RectTransform)lobbyCanvas.transform;
             panel = OnlineInviteMenu.Rect("PlayerRoster", canvas, Vector2.zero, new Vector2(PanelWidth, RosterTop - RosterBottom));
@@ -111,6 +120,11 @@ namespace MorePlayers
             motion.Handler = Handler;
             MatchNativeInviteStyle();
             summary = ui.Text("RosterTitle", panel, new Vector2(0, 722), new Vector2(1400, 58), "PLAYERS", 42);
+            ItemsVisibilityButton = ui.Button("ShowItems", panel, new Vector2(640, 722), new Vector2(340, 58),
+                "SHOW ITEMS: OFF", ToggleItemVisibility);
+            ui.StyleButton(ItemsVisibilityButton);
+            itemsVisibilityLabel = ItemsVisibilityButton.GetComponentInChildren<TextMeshProUGUI>();
+            ItemsVisibilityButton.gameObject.SetActive(false);
             Cards = new Card[Constants.MAX_PLAYERS];
             var native = Handler.networkPlayerBoxes[0];
             var nativeImages = LocalEditor.GetComponentsInChildren<Image>(true);
@@ -495,6 +509,7 @@ namespace MorePlayers
                     icon.raycastTarget = false;
                     card.AbilityIcons[i] = icon;
                 }
+                tile.gameObject.SetActive(false);
             }
 
             card.PracticeAvatar = OnlineInviteMenu.Rect("PracticePlayer" + (index + 1), practice, Vector2.zero, new Vector2(170, 180));
@@ -618,6 +633,59 @@ namespace MorePlayers
             if (CanKick(peer)) SendKick(SteamManager.instance.connectedPlayers.IndexOf(peer));
         }
 
+        bool TryGetItemsLobby(out Lobby lobby)
+        {
+            var manager = SteamManager.instance;
+            lobby = manager == null ? default : manager.currentLobby;
+            return SteamClient.IsValid && lobby.Id.IsValid && GameSession.inMenus
+                && Handler.goingBackOperation == null && !Handler.isStartingAGame;
+        }
+
+        static bool IsLobbyOwner(Lobby lobby)
+        {
+#if BOPL8_UI_SMOKE
+            if (IsLobbyOwnerOverride != null) return IsLobbyOwnerOverride(lobby);
+#endif
+            return lobby.IsOwnedBy(SteamClient.SteamId);
+        }
+
+        void RefreshItemVisibility()
+        {
+            if (!TryGetItemsLobby(out var lobby))
+            {
+                itemsLobbyId = default;
+                showItems = false;
+                ItemsVisibilityButton.gameObject.SetActive(false);
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            if (itemsLobbyId == lobby.Id && now < nextItemsRefresh) return;
+
+            // Steam synchronizes this owner-writable setting to current and joining members.
+            itemsLobbyId = lobby.Id;
+            nextItemsRefresh = now + ItemsRefreshInterval;
+            showItems = lobby.GetData(ShowItemsLobbyKey) == "1";
+            itemsVisibilityLabel.text = showItems ? "SHOW ITEMS: ON" : "SHOW ITEMS: OFF";
+            ItemsVisibilityButton.gameObject.SetActive(IsLobbyOwner(lobby));
+        }
+
+        void ToggleItemVisibility()
+        {
+            if (inviteMenu.BlocksInput || !TryGetItemsLobby(out var lobby)
+                || lobby.Id != itemsLobbyId || !IsLobbyOwner(lobby)) return;
+
+            bool show = lobby.GetData(ShowItemsLobbyKey) != "1";
+            if (!lobby.SetData(ShowItemsLobbyKey, show ? "1" : "0"))
+            {
+                Main.Log.LogWarning("Steam could not update the room's Show Items setting.");
+                return;
+            }
+            showItems = show;
+            itemsVisibilityLabel.text = show ? "SHOW ITEMS: ON" : "SHOW ITEMS: OFF";
+            nextItemsRefresh = Time.unscaledTime + ItemsRefreshInterval;
+        }
+
         void LateUpdate()
         {
             if (root == null) return;
@@ -628,6 +696,7 @@ namespace MorePlayers
             if (!active) return;
             FitRosterToWindow();
             PositionLocalEditor();
+            RefreshItemVisibility();
             int present = 0;
             latestArrival = float.PositiveInfinity;
             for (int i = 0; i < Cards.Length; i++)
@@ -742,7 +811,7 @@ namespace MorePlayers
                     ability = displayedSlot == 0 ? kit.ability0 : displayedSlot == 1 ? kit.ability1 : kit.ability2;
                 else if (ready)
                     ability = displayedSlot == 0 ? peer.lobby_ability1 : displayedSlot == 1 ? peer.lobby_ability2 : peer.lobby_ability3;
-                bool known = (!local || Handler.characterSelectBox.menuState != CharSelectMenu.join) &&
+                bool known = showItems && (!local || Handler.characterSelectBox.menuState != CharSelectMenu.join) &&
                     i < abilityCount && abilities != null && ability >= 0 && ability < abilities.sprites.Count &&
                     !string.Equals(abilities.sprites[ability].name, "None", StringComparison.OrdinalIgnoreCase);
                 var icon = card.AbilityIcons[i];

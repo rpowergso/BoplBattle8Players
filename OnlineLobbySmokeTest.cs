@@ -269,6 +269,13 @@ namespace MorePlayers
             yield return TapKey(keyboard, Key.W);
             if (selector.selectables[selector.selectedIndex] != colorSelector)
                 throw new Exception("W did not return to the native color picker");
+            var itemsButton = roster.ItemsVisibilityButton;
+            var itemsLabel = itemsButton?.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+            var room = SteamManager.instance.currentLobby;
+            if (itemsButton == null || !itemsButton.gameObject.activeInHierarchy || !itemsButton.IsInteractable() ||
+                itemsLabel?.text != "SHOW ITEMS: OFF" || room.GetData(OnlinePlayerRoster.ShowItemsLobbyKey) == "1" ||
+                !RosterItemsHidden(roster) || nativeAbilities.Any(ability => !ability.abilityIconRenderer.isActiveAndEnabled))
+                throw new Exception("New rooms must hide roster items by default while keeping the local loadout editor visible");
             var editorIcons = nativeAbilities
                 .OrderByDescending(ability => ScreenBounds(ability.abilityIconRenderer.rectTransform).center.y)
                 .Select(ability => ability.abilityIconRenderer.overrideSprite ?? ability.abilityIconRenderer.sprite)
@@ -436,6 +443,7 @@ namespace MorePlayers
             if (!handler.GetComponent<OnlineInviteMenu>().IsOpen) throw new Exception("Native Invite button did not open invitations");
             handler.GetComponent<OnlineInviteMenu>().Close();
             yield return new WaitForSecondsRealtime(0.2f);
+            yield return VerifyRoomItems(roster, room, itemsButton, itemsLabel, nativeAbilities);
             ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(BepInEx.Paths.PluginPath, $"ui-{Main.ModVersion}.png"));
             if (roster.LocalEditor != handler.characterSelectBox.transform ||
                 handler.characterSelectBox.abilityGrid == null || handler.characterSelectBox.rebindImageControllerImage == null ||
@@ -597,11 +605,92 @@ namespace MorePlayers
             handler = UnityEngine.Object.FindObjectOfType<CharacterSelectHandler_online>();
             if (handler.networkPlayerBoxes.Length != expected || (expected > 3 && handler.GetComponent<OnlineLobbyEmptySlots>() == null))
                 throw new Exception("UI patch failed after scene re-entry");
+            var reopenedRoster = handler.GetComponent<OnlinePlayerRoster>();
+            yield return WaitForRoomItems(() =>
+            {
+                var reopenedRoom = SteamManager.instance.currentLobby;
+                string expectedItemsLabel = (ulong)reopenedRoom.Id == (ulong)room.Id ? "SHOW ITEMS: ON" : "SHOW ITEMS: OFF";
+                return (ulong)reopenedRoom.Id != 0 && reopenedRoster.ItemsVisibilityButton.gameObject.activeInHierarchy &&
+                    reopenedRoster.ItemsVisibilityButton.GetComponentInChildren<TMPro.TextMeshProUGUI>().text == expectedItemsLabel;
+            });
+            SteamManager.instance.LeaveLobby();
+            yield return WaitForRoomItems(() =>
+            {
+                var newRoom = SteamManager.instance.currentLobby;
+                return (ulong)newRoom.Id != 0 && (ulong)newRoom.Id != (ulong)room.Id &&
+                    reopenedRoster.ItemsVisibilityButton.gameObject.activeInHierarchy &&
+                    reopenedRoster.ItemsVisibilityButton.GetComponentInChildren<TMPro.TextMeshProUGUI>().text == "SHOW ITEMS: OFF" &&
+                    RosterItemsHidden(reopenedRoster);
+            }, timeout: 8);
+            Main.Log.LogInfo("[UI smoke] PASS: item visibility follows the current room and defaults to off in a fresh lobby");
             Main.Log.LogInfo("[UI smoke] PASS: online scene re-entry");
             // BepInEx's disk listener flushes periodically; retain the final result.
             yield return new WaitForSecondsRealtime(3);
             Application.Quit();
         }
+
+        static IEnumerator VerifyRoomItems(OnlinePlayerRoster roster, Steamworks.Data.Lobby room, UnityEngine.UI.Button button,
+            TMPro.TextMeshProUGUI label, SelectAbility[] nativeAbilities)
+        {
+            const string key = OnlinePlayerRoster.ShowItemsLobbyKey;
+            if (!RosterItemsHidden(roster))
+                throw new Exception("Ready players exposed roster items while the room setting was off");
+
+            var editorSprites = nativeAbilities.Select(ability => ability.abilityIconRenderer.sprite).ToArray();
+            button.onClick.Invoke();
+            yield return WaitForRoomItems(() => room.GetData(key) == "1" && label.text == "SHOW ITEMS: ON" && RosterItemsShown(roster));
+            CaptureLobbyFrame("ui-lobby-items-on.png");
+            yield return null;
+
+            button.onClick.Invoke();
+            yield return WaitForRoomItems(() => room.GetData(key) != "1" && label.text == "SHOW ITEMS: OFF" && RosterItemsHidden(roster));
+            CaptureLobbyFrame("ui-lobby-items-off.png");
+            yield return null;
+
+            try
+            {
+                // Keep the real Steam lobby data while exercising the guest view.
+                OnlinePlayerRoster.IsLobbyOwnerOverride = _ => false;
+                // The old owner button can still be visible in the frame where ownership changes.
+                button.onClick.Invoke();
+                yield return WaitForRoomItems(() => !button.gameObject.activeInHierarchy);
+                if (room.GetData(key) == "1" || !RosterItemsHidden(roster))
+                    throw new Exception("A guest could modify the host's room setting");
+
+                if (!room.SetData(key, "1"))
+                    throw new Exception("Could not publish the simulated host's choice to Steam");
+                yield return WaitForRoomItems(() => !button.gameObject.activeInHierarchy && RosterItemsShown(roster));
+                if (!room.SetData(key, "0"))
+                    throw new Exception("Could not clear the simulated host's choice on Steam");
+                yield return WaitForRoomItems(() => !button.gameObject.activeInHierarchy && RosterItemsHidden(roster));
+            }
+            finally
+            {
+                OnlinePlayerRoster.IsLobbyOwnerOverride = null;
+            }
+
+            if (!nativeAbilities.Select(ability => ability.abilityIconRenderer.sprite).SequenceEqual(editorSprites))
+                throw new Exception("Changing item visibility modified the native local loadout editor");
+            yield return WaitForRoomItems(() => button.gameObject.activeInHierarchy && label.text == "SHOW ITEMS: OFF");
+            button.onClick.Invoke();
+            yield return WaitForRoomItems(() => room.GetData(key) == "1" && label.text == "SHOW ITEMS: ON" && RosterItemsShown(roster));
+            Main.Log.LogInfo("[UI smoke] PASS: host toggles roster items with Steam room data, the simulated guest follows and cannot change it, and the local editor is unaffected");
+        }
+
+        static IEnumerator WaitForRoomItems(Func<bool> matches, float timeout = 2)
+        {
+            float deadline = Time.realtimeSinceStartup + timeout;
+            while (!matches() && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            if (!matches())
+                throw new Exception("Room item visibility did not match the host setting");
+        }
+
+        static bool RosterItemsHidden(OnlinePlayerRoster roster) =>
+            roster.Cards.All(card => card.AbilityIcons.All(icon => !icon.transform.parent.gameObject.activeSelf));
+
+        static bool RosterItemsShown(OnlinePlayerRoster roster) =>
+            roster.Cards.All(card => card.AbilityIcons.All(icon => icon.isActiveAndEnabled && icon.sprite != null));
 
         static IEnumerator TapKey(Keyboard keyboard, Key key, float hold = 0.08f)
         {

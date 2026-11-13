@@ -20,7 +20,7 @@ namespace MorePlayers
     [BepInPlugin("com.rpowergso.bopl8players", "Bopl 8 Players", Main.ModVersion)]
     public class Main : BaseUnityPlugin
     {
-        internal const string ModVersion = "0.3.3";
+        internal const string ModVersion = "0.3.4";
         internal static ManualLogSource Log;
         private Harmony harmony;
         private bool isVisible = true;
