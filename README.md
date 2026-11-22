@@ -16,21 +16,13 @@ Play Bopl Battle with up to 8 players in a private Steam lobby. The host can set
 ## Install
 
 1. Install **Bopl8Players** in a Bopl Battle profile in Thunderstore Mod Manager or r2modman. The manager installs BepInExPack with it.
-2. Have everyone install the same mod version and choose **Start modded** once to set up the mod loader.
-3. The host opens **Online Play** → **Invite Players**, then selects **Invite** next to a friend or opens **Steam Invite Window**. Friends click the invite in Steam to join while their modded game is running.
+2. Have everyone install the same mod version and choose **Start modded**.
+3. The host opens **Online Play** → **Invite Players** and clicks **Invite** next to a friend. For the Steam overlay, choose **Steam Invite Window** instead.
+4. The friend clicks **Join Game** in the Steam invite while Bopl Battle is running with Bopl8Players. They can accept from the main menu.
+
+If a friend’s game is closed, they should choose **Start modded** in their manager before accepting. Steam’s standard invite launch uses Bopl Battle’s Steam launch settings.
 
 For manual installation, download the ZIP from the [GitHub release](https://github.com/rpowergso/BoplBattle8Players/releases/tag/v0.3.4-alpha), then place `Bopl8Players.dll` in the modded profile’s `BepInEx/plugins/Bopl8Players/` folder.
-
-### Accept Steam invites with the game closed
-
-Each friend can set Steam to use their Bopl8Players profile when an invite starts the game.
-
-1. In Thunderstore Mod Manager or r2modman, select the Bopl Battle profile with **Bopl8Players** and start it modded once. Then close Bopl Battle.
-2. In the manager’s **Help** menu, copy the arguments under **Launching from Steam** or **Launching the game from outside the mod manager**. If you need to generate them from the profile folder, use [Get-SteamLaunchOptions.ps1](scripts/Get-SteamLaunchOptions.ps1).
-3. In Steam, right-click **Bopl Battle** → **Properties** → **General** and paste the arguments into **Launch Options**. The path points to your own modded profile, so each friend uses their own arguments.
-4. Click the Steam invite. Steam starts Bopl Battle with the modded profile and passes the invited lobby to the game.
-
-To check your setup before someone invites you, start Bopl Battle from Steam and look for **Invite Players** under **Online Play**. With these launch options set, the Steam **Play** button also uses that profile. Clear the launch options to play vanilla through Steam. If you prefer to leave Steam’s settings alone, use **Start modded** and then accept the invite.
 
 ## Compatibility
 
