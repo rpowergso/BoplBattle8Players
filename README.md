@@ -30,6 +30,13 @@ Requires Bopl Battle 2.5.1 on Windows (Steam) and BepInExPack 5.4.2305. Public m
 
 This is an alpha. The lobby was tested with Steam connected and simulated peers. Full 5–8 player matches and reconnects still need live testing.
 
+## Patch notes
+
+### 0.3.5
+
+- Fixed a Steam invite race that could leave you outside a friend's lobby after pressing **Join Game** with Bopl8Players running.
+- Prevented overlapping lobby joins when an invite is accepted more than once.
+
 <details>
 <summary>Configuration and build</summary>
 
