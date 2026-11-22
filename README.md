@@ -17,7 +17,10 @@ Play Bopl Battle with up to 8 players in a private Steam lobby. The host can set
 
 1. Install **Bopl8Players** in a Bopl Battle profile in Thunderstore Mod Manager or r2modman. The manager installs BepInExPack with it.
 2. Have everyone install the same mod version and choose **Start modded**.
-3. In the game, open **Online Play** → **Invite Players**.
+3. The host opens **Online Play** → **Invite Players** and clicks **Invite** next to a friend. For the Steam overlay, choose **Steam Invite Window** instead.
+4. The friend clicks **Join Game** in the Steam invite while Bopl Battle is running with Bopl8Players. They can accept from the main menu.
+
+If a friend’s game is closed, they should choose **Start modded** in their manager before accepting. Steam’s standard invite launch uses Bopl Battle’s Steam launch settings.
 
 For manual installation, download the ZIP from the [GitHub release](https://github.com/rpowergso/BoplBattle8Players/releases/tag/v0.3.4-alpha), then place `Bopl8Players.dll` in the modded profile’s `BepInEx/plugins/Bopl8Players/` folder.
 
@@ -26,6 +29,13 @@ For manual installation, download the ZIP from the [GitHub release](https://gith
 Requires Bopl Battle 2.5.1 on Windows (Steam) and BepInExPack 5.4.2305. Public matchmaking and replay recording are disabled. The game’s four teams are available. Use a profile without other player-count or networking mods.
 
 This is an alpha. The lobby was tested with Steam connected and simulated peers. Full 5–8 player matches and reconnects still need live testing.
+
+## Patch notes
+
+### 0.3.5
+
+- Fixed a Steam invite race that could leave you outside a friend's lobby after pressing **Join Game** with Bopl8Players running.
+- Prevented overlapping lobby joins when an invite is accepted more than once.
 
 <details>
 <summary>Configuration and build</summary>
